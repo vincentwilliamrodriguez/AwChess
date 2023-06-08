@@ -1,0 +1,53 @@
+[gd_scene load_steps=9 format=3 uid="uid://wtlwn2roashj"]
+
+[ext_resource type="Texture2D" uid="uid://vbfddu354mps" path="res://src/assets/light.png" id="1_7jydu"]
+[ext_resource type="Script" path="res://src/scripts/main.cs" id="1_d4knv"]
+[ext_resource type="Texture2D" uid="uid://cvj14y5whbnoq" path="res://src/assets/dark.png" id="2_mxiid"]
+[ext_resource type="Texture2D" uid="uid://bd6788djt6dkl" path="res://src/assets/pieces.png" id="3_iegs7"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_38rdy"]
+texture = ExtResource("1_7jydu")
+texture_region_size = Vector2i(160, 160)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_kp15v"]
+texture = ExtResource("2_mxiid")
+texture_region_size = Vector2i(160, 160)
+0:0/0 = 0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_gygfc"]
+texture = ExtResource("3_iegs7")
+texture_region_size = Vector2i(133, 133)
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+3:0/0 = 0
+4:0/0 = 0
+5:0/0 = 0
+5:1/0 = 0
+4:1/0 = 0
+2:1/0 = 0
+3:1/0 = 0
+1:1/0 = 0
+0:1/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_fgwq3"]
+tile_size = Vector2i(133, 133)
+sources/0 = SubResource("TileSetAtlasSource_38rdy")
+sources/1 = SubResource("TileSetAtlasSource_kp15v")
+sources/2 = SubResource("TileSetAtlasSource_gygfc")
+
+[node name="Node2D" type="Node2D"]
+script = ExtResource("1_d4knv")
+
+[node name="Board_Pieces" type="TileMap" parent="."]
+tile_set = SubResource("TileSet_fgwq3")
+format = 2
+layer_0/name = "board"
+layer_1/name = "pieces"
+layer_1/enabled = true
+layer_1/modulate = Color(1, 1, 1, 1)
+layer_1/y_sort_enabled = false
+layer_1/y_sort_origin = 0
+layer_1/z_index = 0
+layer_1/tile_data = PackedInt32Array()
