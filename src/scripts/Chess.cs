@@ -1,9 +1,11 @@
 using Godot;
 using System;
+using System.Collections;
 
 public partial class Chess
 {
 	public ulong[,] pieces = new ulong[2,6];
+	public bool[,] castlingRights = new bool[,] {{true, true}, {true, true}};
 	
 	public Chess()
 	{
@@ -38,5 +40,19 @@ public partial class Chess
 				i++;
 			}
 		}
+
+		/* Side to move */
+
+
+		/* Castling rights */
+
+
+		/* En passant target square */
+
+
+		/* Halfmove Clock */
+
+
+		/* Fullmove counter */
 	}
 }

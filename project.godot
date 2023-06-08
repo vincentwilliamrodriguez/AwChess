@@ -19,6 +19,15 @@ config/icon="res://icon.svg"
 
 g="*res://src/scripts/g.cs"
 
+[display]
+
+window/size/viewport_width=1418
+window/size/viewport_height=1064
+window/size/resizable=false
+window/size/window_width_override=709
+window/size/window_height_override=532
+window/stretch/mode="canvas_items"
+
 [dotnet]
 
 project/assembly_name="AwChess"
