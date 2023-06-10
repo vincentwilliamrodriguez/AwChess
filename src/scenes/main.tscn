@@ -1,9 +1,10 @@
-[gd_scene load_steps=9 format=3 uid="uid://wtlwn2roashj"]
+[gd_scene load_steps=11 format=3 uid="uid://wtlwn2roashj"]
 
 [ext_resource type="Texture2D" uid="uid://vbfddu354mps" path="res://src/assets/light.png" id="1_7jydu"]
 [ext_resource type="Script" path="res://src/scripts/main.cs" id="1_d4knv"]
 [ext_resource type="Texture2D" uid="uid://cvj14y5whbnoq" path="res://src/assets/dark.png" id="2_mxiid"]
 [ext_resource type="Texture2D" uid="uid://bd6788djt6dkl" path="res://src/assets/pieces.png" id="3_iegs7"]
+[ext_resource type="Texture2D" uid="uid://demgt3lim62b1" path="res://src/assets/highlight.png" id="5_nhvnw"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_38rdy"]
 texture = ExtResource("1_7jydu")
@@ -31,11 +32,17 @@ texture_region_size = Vector2i(133, 133)
 1:1/0 = 0
 0:1/0 = 0
 
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_lfubt"]
+texture = ExtResource("5_nhvnw")
+texture_region_size = Vector2i(133, 133)
+0:0/0 = 0
+
 [sub_resource type="TileSet" id="TileSet_fgwq3"]
 tile_size = Vector2i(133, 133)
 sources/0 = SubResource("TileSetAtlasSource_38rdy")
 sources/1 = SubResource("TileSetAtlasSource_kp15v")
 sources/2 = SubResource("TileSetAtlasSource_gygfc")
+sources/3 = SubResource("TileSetAtlasSource_lfubt")
 
 [node name="Node2D" type="Node2D"]
 script = ExtResource("1_d4knv")
@@ -44,10 +51,18 @@ script = ExtResource("1_d4knv")
 tile_set = SubResource("TileSet_fgwq3")
 format = 2
 layer_0/name = "board"
+layer_0/z_index = -1
 layer_1/name = "pieces"
 layer_1/enabled = true
 layer_1/modulate = Color(1, 1, 1, 1)
 layer_1/y_sort_enabled = false
 layer_1/y_sort_origin = 0
-layer_1/z_index = 0
+layer_1/z_index = 1
 layer_1/tile_data = PackedInt32Array()
+layer_2/name = "highlight"
+layer_2/enabled = true
+layer_2/modulate = Color(1, 1, 1, 0.360784)
+layer_2/y_sort_enabled = false
+layer_2/y_sort_origin = 0
+layer_2/z_index = 0
+layer_2/tile_data = PackedInt32Array()

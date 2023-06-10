@@ -5,19 +5,20 @@ using System.Collections;
 public partial class Chess
 {
 	public ulong[,] pieces = new ulong[2,6];
-	public bool sideToMove = true; // true = white, false = black
+	public ulong[] occupancyByColor = new ulong[2];
+	public ulong occupancy = 0;
+
+	public int sideToMove = 0; // 0 = white, 1 = black
 	public bool[,] castlingRights = new bool[,] {{true, true}, {true, true}};
 	public int enPassantSquare = -1; // -1 by default, from 0 to 63 when en passant
 	public int halfmoveClock = 0;
 	public int fullmoveCounter = 1;
 	
-	public Chess()
-	{
+	public Chess() {
 		GD.Print("g awaw");
 	}
 
-	public void ImportFromFEN(string FEN)
-	{
+	public void ImportFromFEN(string FEN) {
 		// rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
 		string[] fields = FEN.Split(' ');
@@ -45,8 +46,10 @@ public partial class Chess
 			}
 		}
 
+		UpdateOccupancy();
+
 		/* Side to move */
-		sideToMove = Convert.ToBoolean(Array.IndexOf(new char[] {'b', 'w'}, char.Parse(fields[1])));
+		sideToMove = Array.IndexOf(new char[] {'w', 'b'}, char.Parse(fields[1]));
 
 		/* Castling rights */
 		var castlingChar = new char[,] {{'K', 'Q'}, {'k', 'q'}};
@@ -75,5 +78,71 @@ public partial class Chess
 
 
 		// GD.Print(String.Format("FEN\nCastling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}", sideToMove, enPassantSquare, halfmoveClock, fullmoveCounter, castlingRights[0, 0]));
+	}
+
+	public void UpdateOccupancy() {
+		occupancyByColor = new ulong[2];
+		occupancy = 0;
+
+		for (int colorN = 0; colorN < 2; colorN++) {
+			for (int pieceN = 0; pieceN < 6; pieceN++) {
+				occupancyByColor[colorN] |= pieces[colorN, pieceN];
+			}
+			occupancy |= occupancyByColor[colorN];
+		}
+	}
+
+	public int FindPieceN(int index) {
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			for (int pieceN = 0; pieceN < 6; pieceN++)
+			{
+				bool isPieceOfTarget = (pieces[colorN, pieceN] >> index & 1UL) == 1;
+				if (isPieceOfTarget)
+				{
+					return pieceN;
+				}
+			}
+		}
+		
+		return -1;
+	}
+
+	public int FindColorN(int index) {
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			bool isColorOfTarget = (occupancyByColor[colorN] >> index & 1UL) == 1;
+			if (isColorOfTarget) {
+				return colorN;
+			}
+		}
+
+		return -1;
+	}
+
+	public ulong GenerateMovesByIndex(int index) {
+		ulong pseudoLegalMoves = ~occupancy;
+		pseudoLegalMoves |= occupancyByColor[1 - sideToMove];
+		return pseudoLegalMoves;
+	}
+
+	public void MakeMove(int startIndex, int endIndex) {
+		/* Updating pieces */
+		if ((occupancy >> endIndex & 1UL) == 1)
+		{
+			int endPieceN = FindPieceN(endIndex);
+			GD.Print(endPieceN);
+			pieces[1 - sideToMove, endPieceN] &= ~(1UL << endIndex);
+		}
+
+		int startPieceN = FindPieceN(startIndex);
+		pieces[sideToMove, startPieceN] &= ~(1UL << startIndex);
+		pieces[sideToMove, startPieceN] |= 1UL << endIndex;
+
+		UpdateOccupancy();
+
+		/* Updating others */
+		sideToMove = 1 - sideToMove;
+		
 	}
 }
