@@ -14,16 +14,10 @@ public partial class main : Node2D
 		cur = new Chess();
 
 		cur.ImportFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-		// g.PrintBitboard(cur.pieces);
-		foreach (ulong bits in cur.pieces) {
-			// GD.Print(Convert.ToString((long) bits, 2));
-		}
+		g.InitRayAttacks();
 
 		InitBoard();
-		UpdatePieces();
-
-		GD.Print(Convert.ToString((long) cur.occupancyByColor[0], 2));
-		GD.Print(Convert.ToString((long) cur.occupancy, 2));
+		UpdatePieces();	
 	}
 
 	public override void _Process(double delta) {
@@ -119,3 +113,10 @@ public partial class main : Node2D
 		}
 	}
 }
+
+/* 
+var watch = System.Diagnostics.Stopwatch.StartNew();
+		
+watch.Stop();
+GD.Print(watch.ElapsedMilliseconds);
+ */
