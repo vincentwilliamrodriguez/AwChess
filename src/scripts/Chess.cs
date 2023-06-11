@@ -5,16 +5,18 @@ using System.Collections.Generic;
 
 public partial class Chess
 {
-	public ulong[,] pieces = new ulong[2,6];
-	public List<int>[,] piecesSer = new List<int>[2,6];
+	public ulong[,] pieces = new ulong[2, 6];
+	public List<int>[,] piecesSer = new List<int>[2, 6];
 	public ulong[] occupancyByColor = new ulong[2];
 	public ulong occupancy = 0;
 
 	public int sideToMove = 0; // 0 = white, 1 = black
 	public bool[,] castlingRights = new bool[,] {{true, true}, {true, true}};
-	public int enPassantSquare = -1; // -1 by default, from 0 to 63 when en passant
-	public int halfmoveClock = 0;
-	public int fullmoveCounter = 1;
+	public int enPassantSquare = -1;
+	public int halfMoveClock = 0;
+	public int fullMoveCounter = 1;
+
+	public Dictionary<int, List<int>>[] possibleMoves = new Dictionary<int, List<int>>[6]; // only includes sideToMove
 	
 	public Chess() {
 		GD.Print("g awaw");
@@ -48,9 +50,6 @@ public partial class Chess
 			}
 		}
 
-		UpdateOccupancy();
-		UpdateSerialized();
-
 		/* Side to move */
 		sideToMove = Array.IndexOf(new char[] {'w', 'b'}, char.Parse(fields[1]));
 
@@ -74,13 +73,17 @@ public partial class Chess
 		}
 
 		/* Halfmove Clock */
-		halfmoveClock = Convert.ToInt32(fields[4]);
+		halfMoveClock = Convert.ToInt32(fields[4]);
 
 		/* Fullmove counter */
-		fullmoveCounter = Convert.ToInt32(fields[5]);
+		fullMoveCounter = Convert.ToInt32(fields[5]);
 
 
-		// GD.Print(String.Format("FEN\nCastling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}", sideToMove, enPassantSquare, halfmoveClock, fullmoveCounter, castlingRights[0, 0]));
+
+		UpdateOccupancy();
+		UpdateSerialized();
+		GeneratePossibleMoves();
+		// GD.Print(String.Format("FEN\nCastling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}", sideToMove, enPassantSquare, halfMoveClock, fullMoveCounter, castlingRights[0, 0]));
 	}
 
 	public void UpdateOccupancy() {
@@ -137,11 +140,13 @@ public partial class Chess
 	}
 
 	public void MakeMove(int startIndex, int endIndex) {
-		/* Updating pieces */
+		/* Updating Pieces */
+		int endPieceN = -1;
+		bool isWhitesTurn = sideToMove == 0;
+
 		if ((occupancy >> endIndex & 1UL) == 1)
 		{
-			int endPieceN = FindPieceN(endIndex);
-			GD.Print(endPieceN);
+			endPieceN = FindPieceN(endIndex);
 			pieces[1 - sideToMove, endPieceN] &= ~(1UL << endIndex);
 		}
 
@@ -149,16 +154,90 @@ public partial class Chess
 		pieces[sideToMove, startPieceN] &= ~(1UL << startIndex);
 		pieces[sideToMove, startPieceN] |= 1UL << endIndex;
 
-		UpdateOccupancy();
 
-		/* Updating others */
-		sideToMove = 1 - sideToMove;
+		/* Updating Castling Rights */
+		if (startPieceN == 0) // if king moved
+		{
+			castlingRights[sideToMove, 0] = false;
+			castlingRights[sideToMove, 1] = false;
+		}
+
+		if (startPieceN == 4 || endPieceN == 4) // if rook moved or got captured
+		{
+			if (startIndex == 0 || startIndex == 56 || // if queen's rook moved
+				endIndex == 0 || endIndex == 56) // if queen's rook got captured
+			{
+				castlingRights[sideToMove, 0] = false;
+			}
+			
+			if (startIndex == 7 || startIndex == 63 || // if king's rook moved
+				endIndex == 7 || endIndex == 63) // if king's rook got captured
+			{
+				castlingRights[sideToMove, 1] = false;
+			}
+		}
+
+		/* Updating En Passant */
+		int requiredStartRank = isWhitesTurn ? 1 : 6;
+		int requiredEndRank = isWhitesTurn ? 3 : 4;
+
+		if (startPieceN == 5 && // if pawn moved
+			((startIndex / 8) == requiredStartRank && (endIndex / 8) == requiredEndRank)) // if pawn double moved
+		{
+			enPassantSquare = endIndex - (isWhitesTurn ? 8 : -8);
+		}
+		else
+		{
+			enPassantSquare = -1;
+		}
 		
+		/* Updating Clocks */
+		if (endPieceN != -1 || startPieceN == 5)
+		{
+			halfMoveClock = 0;
+		}
+		else
+		{
+			halfMoveClock++;
+		}
+		
+		if (!isWhitesTurn)
+		{
+			fullMoveCounter++;
+		}
+
+		/* Updating Side To Move */
+		sideToMove = 1 - sideToMove;
+
+		/* Updating Functions */
+		UpdateOccupancy();
+		UpdateSerialized();
+		GeneratePossibleMoves();
+
+		GD.Print(String.Format("FEN\nCastling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", sideToMove, enPassantSquare, halfMoveClock, fullMoveCounter, castlingRights[0, 0]));
 	}
 
-	public ulong GenerateMovesByIndex(int index) {
-		int pieceN = FindPieceN(index);
+	public void GeneratePossibleMoves(){
+		for (int pieceN = 0; pieceN < 6; pieceN++)
+		{
+			possibleMoves[pieceN] = new Dictionary<int, List<int>> {};
 
+			foreach (int pieceIndex in piecesSer[sideToMove, pieceN])
+			{
+				ulong pieceMoves = GenerateMovesByIndex(pieceN, pieceIndex);
+				List<int> pieceMovesList = new List<int> {};
+
+				foreach (int targetSquare in g.Serialize(pieceMoves))
+				{
+					pieceMovesList.Add(targetSquare);
+				}
+
+				possibleMoves[pieceN].Add(pieceIndex, pieceMovesList);
+			}
+		}
+	}
+
+	public ulong GenerateMovesByIndex(int pieceN, int index){
 		ulong pseudoLegalMoves = 0;
 
 		switch (pieceN)

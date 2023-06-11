@@ -21,7 +21,7 @@ public partial class main : Node2D
 	}
 
 	public override void _Process(double delta) {
-		HighlightBitboard(g.curPossibleMoves);
+		HighlightPossibleMoves();
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -42,24 +42,26 @@ public partial class main : Node2D
 				if (!g.isMovingPiece && isTargetOccupied)
 				{
 					g.selectedPiece = targetIndex;
-					g.curPossibleMoves = cur.GenerateMovesByIndex(g.selectedPiece);
+					g.selectedPieceN = cur.FindPieceN(g.selectedPiece);
+					int PieceMovesCount = cur.possibleMoves[g.selectedPieceN][g.selectedPiece].Count;
 
-					if (g.curPossibleMoves != 0UL)
+					if (PieceMovesCount != 0)
 					{
+						g.curHighlightedMoves = cur.GenerateMovesByIndex(g.selectedPieceN, g.selectedPiece);
 						g.isMovingPiece = true;
 					}
 				}
 
 				else if (g.isMovingPiece)
 				{
-					if ((g.curPossibleMoves >> targetIndex & 1UL) == 1) // Checks if move is part of generated moves
+					if (cur.possibleMoves[g.selectedPieceN][g.selectedPiece].Contains(targetIndex)) // Checks if move is part of generated moves
 					{
 						cur.MakeMove(g.selectedPiece, targetIndex);
+						UpdatePieces();
 					}
 
-					g.curPossibleMoves = 0;
 					g.isMovingPiece = false;
-					UpdatePieces();
+					g.curHighlightedMoves = 0UL;
 				}
 			}
 		}
@@ -114,6 +116,27 @@ public partial class main : Node2D
 			}
 
 			bitboardTemp = bitboardTemp >> 1;
+		}
+	}
+
+	public void HighlightPossibleMoves() {
+		board_pieces_node.ClearLayer(3);
+		ulong silentMoves = g.curHighlightedMoves & ~cur.occupancy;
+		ulong captureMoves = g.curHighlightedMoves & cur.occupancy;
+
+		foreach (int i in g.Serialize(silentMoves))
+		{
+			int x = i % 8;
+			int y = 7 - (i / 8);
+			board_pieces_node.SetCell(3, new Vector2I(x, y), 4, new Vector2I(0, 0));
+		}
+
+		
+		foreach (int i in g.Serialize(captureMoves))
+		{
+			int x = i % 8;
+			int y = 7 - (i / 8);
+			board_pieces_node.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
 		}
 	}
 }

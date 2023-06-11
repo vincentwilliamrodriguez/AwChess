@@ -9,7 +9,8 @@ public static partial class g
 	public static bool[] isPlayer = new bool[] {true, false};
 	public static bool isMovingPiece = false;
 	public static int selectedPiece = -1; // [piece, index]
-	public static ulong curPossibleMoves = 0;
+	public static int selectedPieceN = -1;
+	public static ulong curHighlightedMoves = 0UL;
 
 	public static ulong[,] rayAttacks = new ulong[64,8]; // dimensions are squares and directions (starting from NW clockwise)
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
