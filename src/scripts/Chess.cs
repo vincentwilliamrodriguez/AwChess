@@ -1,10 +1,12 @@
 using Godot;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 
 public partial class Chess
 {
 	public ulong[,] pieces = new ulong[2,6];
+	public List<int>[,] piecesSer = new List<int>[2,6];
 	public ulong[] occupancyByColor = new ulong[2];
 	public ulong occupancy = 0;
 
@@ -47,6 +49,7 @@ public partial class Chess
 		}
 
 		UpdateOccupancy();
+		UpdateSerialized();
 
 		/* Side to move */
 		sideToMove = Array.IndexOf(new char[] {'w', 'b'}, char.Parse(fields[1]));
@@ -84,11 +87,24 @@ public partial class Chess
 		occupancyByColor = new ulong[2];
 		occupancy = 0;
 
-		for (int colorN = 0; colorN < 2; colorN++) {
-			for (int pieceN = 0; pieceN < 6; pieceN++) {
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			for (int pieceN = 0; pieceN < 6; pieceN++)
+			{
 				occupancyByColor[colorN] |= pieces[colorN, pieceN];
 			}
+
 			occupancy |= occupancyByColor[colorN];
+		}
+	}
+
+	public void UpdateSerialized(){
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			for (int pieceN = 0; pieceN < 6; pieceN++)
+			{
+				piecesSer[colorN, pieceN] = g.Serialize(pieces[colorN, pieceN]);
+			}
 		}
 	}
 

@@ -1,5 +1,8 @@
 using Godot;
 using System;
+using System.Numerics;
+using System.Collections.Generic;
+using System.Linq;
 
 public static partial class g
 {
@@ -18,7 +21,24 @@ public static partial class g
 		return 8 * rank + file;
 	}
 
-	public static bool IsWithinBoard(int file, int rank){
+	public static bool IsWithinBoard(int file, int rank) {
 		return file >= 0 && file < 8 && rank >= 0 && rank < 8;
+	}
+
+	public static int BitScanForward(ulong val) {
+		if (val == 0) {return -1;}
+		return BitOperations.TrailingZeroCount(val);
+	}
+
+	public static List<int> Serialize(ulong x) {
+		List<int> output = new List<int> {};
+
+		while (x != 0UL)
+		{
+			output.Add(g.BitScanForward(x)); // Adds index of LSB to serialized list
+			x &= x - 1;
+		}
+
+		return output;
 	}
 }
