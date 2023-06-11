@@ -136,12 +136,6 @@ public partial class Chess
 		return -1;
 	}
 
-	public ulong GenerateMovesByIndex(int index) {
-		ulong pseudoLegalMoves = ~occupancy;
-		pseudoLegalMoves |= occupancyByColor[1 - sideToMove];
-		return pseudoLegalMoves;
-	}
-
 	public void MakeMove(int startIndex, int endIndex) {
 		/* Updating pieces */
 		if ((occupancy >> endIndex & 1UL) == 1)
@@ -160,5 +154,72 @@ public partial class Chess
 		/* Updating others */
 		sideToMove = 1 - sideToMove;
 		
+	}
+
+	public ulong GenerateMovesByIndex(int index) {
+		int pieceN = FindPieceN(index);
+
+		ulong pseudoLegalMoves = 0;
+
+		switch (pieceN)
+		{
+			case 0:
+				break;
+			
+			// QUEEN
+			case 1:
+				for (int dir = 0; dir < 8; dir++)
+				{
+					pseudoLegalMoves |= GetBlockedRayAttack(index, dir);
+				}
+
+				break;
+			
+			// BISHOP
+			case 2:
+				for (int dir = 0; dir < 8; dir += 2)
+				{
+					pseudoLegalMoves |= GetBlockedRayAttack(index, dir);
+				}
+
+				break;
+			
+			// KNIGHT
+			case 3:
+				break;
+			
+			// ROOK
+			case 4:
+				for (int dir = 1; dir < 8; dir += 2)
+				{
+					pseudoLegalMoves |= GetBlockedRayAttack(index, dir);
+				}
+
+				break;
+			
+			// PAWN
+			case 5:
+				pseudoLegalMoves |= ulong.MaxValue;
+				break;
+			
+		}
+
+		
+		pseudoLegalMoves &= ~occupancyByColor[sideToMove];
+		return pseudoLegalMoves;
+	}
+
+	public ulong GetBlockedRayAttack(int index, int dir)
+	{
+		ulong attacks = g.rayAttacks[index, dir];
+		ulong blockers = attacks & occupancy;
+
+		if (blockers != 0UL)
+		{
+			int nearestBlocker = g.BitScan(blockers, g.dirNums[dir] > 0); // Gotten by finding the LS1B or MS1B depending whether the direction is +ve or -ve
+			attacks ^= g.rayAttacks[nearestBlocker, dir];
+		}
+
+		return attacks;
 	}
 }

@@ -12,6 +12,17 @@ public static partial class g
 	public static ulong curPossibleMoves = 0;
 
 	public static ulong[,] rayAttacks = new ulong[64,8]; // dimensions are squares and directions (starting from NW clockwise)
+	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
+	{
+		{0, 7}, // North West
+		{1, 8}, // North
+		{2, 9}, // North East
+		{3, 1}, // East
+		{4, -7}, // South East
+		{5, -8}, // South
+		{6, -9}, // South West
+		{7, -1} // West
+	};
 
 	public static void PrintBitboard(ulong[,] inp) {
 		foreach (var piece in inp) {
@@ -31,9 +42,10 @@ public static partial class g
 		return index >= 0 && index < 64;
 	}
 
-	public static int BitScanForward(ulong val) {
+	public static int BitScan(ulong val, bool isPositive = true) {
 		if (val == 0) {return -1;}
-		return BitOperations.TrailingZeroCount(val);
+		return isPositive ? BitOperations.TrailingZeroCount(val) : // LS1B
+					    	63 - BitOperations.LeadingZeroCount(val); // MS1B
 	}
 
 	public static List<int> Serialize(ulong x) {
@@ -41,7 +53,7 @@ public static partial class g
 
 		while (x != 0UL)
 		{
-			output.Add(g.BitScanForward(x)); // Adds index of LSB to serialized list
+			output.Add(g.BitScan(x)); // Adds index of LSB to serialized list
 			x &= x - 1;
 		}
 
@@ -49,18 +61,6 @@ public static partial class g
 	}
 
 	public static void InitRayAttacks() {
-		Dictionary<int, int> dirNums = new Dictionary<int, int> 
-		{
-			{0, 7}, // North West
-			{1, 8}, // North
-			{2, 9}, // North East
-			{3, 1}, // East
-			{4, -7}, // South East
-			{5, -8}, // South
-			{6, -9}, // South West
-			{7, -1} // West
-		};
-
 		for (int from = 0; from < 64; from++)
 		{
 			for (int dir = 0; dir < 8; dir++)
@@ -91,11 +91,6 @@ public static partial class g
 
 					toPrev = to;
 					to += dirNums[dir];
-
-					if (from == 3 && dir == 2)
-					{
-						GD.Print(to, ' ', Convert.ToString((long) rayAttacks[from, dir], 2));
-					}
 				}
 			}
 		}

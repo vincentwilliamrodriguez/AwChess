@@ -43,7 +43,11 @@ public partial class main : Node2D
 				{
 					g.selectedPiece = targetIndex;
 					g.curPossibleMoves = cur.GenerateMovesByIndex(g.selectedPiece);
-					g.isMovingPiece = true;
+
+					if (g.curPossibleMoves != 0UL)
+					{
+						g.isMovingPiece = true;
+					}
 				}
 
 				else if (g.isMovingPiece)
