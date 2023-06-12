@@ -12,7 +12,11 @@ public static partial class g
 	public static int selectedPieceN = -1;
 	public static ulong curHighlightedMoves = 0UL;
 
-	public static ulong[,] rayAttacks = new ulong[64,8]; // dimensions are squares and directions (starting from NW clockwise)
+	public static ulong[,] rayAttacks = new ulong[64,8]; // dimensions are square and direction (starting from NW clockwise)
+	public static ulong[] kingAttacks = new ulong[64]; // dimension is square
+	public static ulong[] knightAttacks = new ulong[64]; // dimension is square
+	public static ulong[,] pawnMoves = new ulong[2, 64]; // dimensions are color and square
+	public static ulong[,] pawnAttacks = new ulong[2, 64]; // dimensions are color and square
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{
 		{0, 7}, // North West
@@ -23,6 +27,17 @@ public static partial class g
 		{5, -8}, // South
 		{6, -9}, // South West
 		{7, -1} // West
+	};
+	public static Dictionary<int, int> dirNumsKnight = new Dictionary<int, int> 
+	{
+		{0, 6}, // North West West
+		{1, 15}, // North Nort West
+		{2, 17}, // North North East
+		{3, 10}, // North East East
+		{4, -6}, // South East East
+		{5, -15}, // South South East
+		{6, -17}, // South South West
+		{7, -10} // South West West
 	};
 
 	public static void PrintBitboard(ulong[,] inp) {
@@ -61,37 +76,79 @@ public static partial class g
 		return output;
 	}
 
-	public static void InitRayAttacks() {
+	public static int DoubleStartRank(int color) {
+		return (color == 0) ? 1 : 6;
+	}
+
+	public static int DoubleEndRank(int color) {
+		return (color == 0) ? 3 : 4;
+	}
+
+	public static int SinglePush(int color) {
+		return (color == 0) ? 8 : -8;
+	}
+
+	public static bool WrapCheck(int from, int add) {
+		int addFile = (add % 8);
+		addFile = addFile > 2 ? addFile - 8 : // if addFile exceeds 2, then subtract 8 from modulo result
+					 (addFile < -2 ? addFile + 8 : // if addFile is less than -2, then add 8 to modulo result
+					  addFile); // if addFile is within normal range, then keep it
+		int addRank = (int) Math.Round(add / 8.0);
+
+		int toFile = (from % 8) + addFile;
+		int toRank = (from / 8) + addRank;
+
+		return (toFile >= 0 && toFile < 8 && toRank >= 0 && toRank < 8);
+	}
+
+	public static void InitAttacks() {
 		for (int from = 0; from < 64; from++)
 		{
+			/* Ray Attacks */
 			for (int dir = 0; dir < 8; dir++)
 			{
 				rayAttacks[from, dir] = 0UL;
 				int to = from + dirNums[dir];
+				int toKnight = from + dirNumsKnight[dir];
 				int toPrev = from;
 
-				while (IsWithinBoard(to))
+				/* King Attacks */
+				if (WrapCheck(from, dirNums[dir]))
+					kingAttacks[from] |= 1UL << to;
+
+				/* Knight Attacks */
+				if (WrapCheck(from, dirNumsKnight[dir]))
+					knightAttacks[from] |= 1UL << toKnight;
+				
+
+				while (WrapCheck(toPrev, dirNums[dir]))
 				{
-					int toRank = to % 8;
-					int toFile = to / 8;
-					bool sameFile = (toPrev % 8) == toRank;
-					bool sameRank = (toPrev / 8) == toFile;
-					bool farFile = Math.Abs((toPrev % 8) - toRank) == 2;
-					bool farRank = Math.Abs((toPrev / 8) - toFile) == 2;
-
-					bool allowed = (dir % 2 == 0) ? !(sameRank || sameFile || farFile || farRank) : // nw, ne, se, sw
-								   ((dir % 4 == 3) ? sameRank : // e, w
-								   true); // n, s
-
-					if (!allowed)
-					{
-						break;
-					}
-					
 					rayAttacks[from, dir] |= 1UL << to;
 
 					toPrev = to;
 					to += dirNums[dir];
+				}
+			}
+
+			/* Pawn Moves and Attacks */
+			for (int colorN = 0; colorN < 2; colorN++)
+			{
+				/* Pawn Moves */
+				int pawnFile = from % 8;
+				int pawnRank = from / 8;
+				pawnMoves[colorN, from] = 0UL | (1UL << (from + SinglePush(colorN)));
+
+				/* Pawn Attacks */
+				pawnAttacks[colorN, from] = 0UL;
+
+				if (pawnFile != 0) // if not on the A file
+				{
+					pawnAttacks[colorN, from] |= 1UL << (from + SinglePush(colorN) - 1);
+				}
+
+				if (pawnFile != 7) // if not on the H file
+				{
+					pawnAttacks[colorN, from] |= 1UL << (from + SinglePush(colorN) + 1);
 				}
 			}
 		}

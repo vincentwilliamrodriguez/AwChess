@@ -13,8 +13,8 @@ public partial class main : Node2D
 		Chess = (Script) GD.Load("res://src/scripts/Chess.cs");
 		cur = new Chess();
 
+		g.InitAttacks();
 		cur.ImportFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-		g.InitRayAttacks();
 
 		InitBoard();
 		UpdatePieces();	
@@ -22,6 +22,7 @@ public partial class main : Node2D
 
 	public override void _Process(double delta) {
 		HighlightPossibleMoves();
+		// HighlightBitboard(g.pawnAttacks[1, 36]);
 	}
 
 	public override void _UnhandledInput(InputEvent @event)

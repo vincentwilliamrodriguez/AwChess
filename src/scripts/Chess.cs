@@ -154,7 +154,6 @@ public partial class Chess
 		pieces[sideToMove, startPieceN] &= ~(1UL << startIndex);
 		pieces[sideToMove, startPieceN] |= 1UL << endIndex;
 
-
 		/* Updating Castling Rights */
 		if (startPieceN == 0) // if king moved
 		{
@@ -176,13 +175,19 @@ public partial class Chess
 				castlingRights[sideToMove, 1] = false;
 			}
 		}
+		
+		
+		/* Enforcing En Passant */
+		if (endIndex == enPassantSquare && startPieceN == 5)
+		{
+			int targetOfEnPassant = endIndex + g.SinglePush(1 - sideToMove);
+			pieces[1 - sideToMove, 5] &= ~(1UL << targetOfEnPassant);
+		}
 
 		/* Updating En Passant */
-		int requiredStartRank = isWhitesTurn ? 1 : 6;
-		int requiredEndRank = isWhitesTurn ? 3 : 4;
-
 		if (startPieceN == 5 && // if pawn moved
-			((startIndex / 8) == requiredStartRank && (endIndex / 8) == requiredEndRank)) // if pawn double moved
+			((startIndex / 8) == g.DoubleStartRank(sideToMove) && 
+			 (endIndex / 8) == g.DoubleEndRank(sideToMove))) // if pawn double moved
 		{
 			enPassantSquare = endIndex - (isWhitesTurn ? 8 : -8);
 		}
@@ -214,7 +219,7 @@ public partial class Chess
 		UpdateSerialized();
 		GeneratePossibleMoves();
 
-		GD.Print(String.Format("FEN\nCastling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", sideToMove, enPassantSquare, halfMoveClock, fullMoveCounter, castlingRights[0, 0]));
+		GD.Print(String.Format("Castling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", sideToMove, enPassantSquare, halfMoveClock, fullMoveCounter, castlingRights[0, 0]));
 	}
 
 	public void GeneratePossibleMoves(){
@@ -243,6 +248,7 @@ public partial class Chess
 		switch (pieceN)
 		{
 			case 0:
+				pseudoLegalMoves |= g.kingAttacks[index];
 				break;
 			
 			// QUEEN
@@ -265,6 +271,7 @@ public partial class Chess
 			
 			// KNIGHT
 			case 3:
+				pseudoLegalMoves |= g.knightAttacks[index];
 				break;
 			
 			// ROOK
@@ -278,7 +285,21 @@ public partial class Chess
 			
 			// PAWN
 			case 5:
-				pseudoLegalMoves |= ulong.MaxValue;
+				pseudoLegalMoves |= g.pawnMoves[sideToMove, index] & ~occupancy; // single push
+
+				if ((index / 8) == g.DoubleStartRank(sideToMove) // if pawn is in home rank
+					&& pseudoLegalMoves != 0) // if pawn move is not blocked in the single push
+				{
+					pseudoLegalMoves |= 1UL << (index + 2 * g.SinglePush(sideToMove)); // double push
+				}
+
+				pseudoLegalMoves |= g.pawnAttacks[sideToMove, index] & occupancyByColor[1 - sideToMove];
+
+				bool isEnPassantAllowed = (g.pawnAttacks[sideToMove, index] >> enPassantSquare & 1UL) == 1;
+				if (isEnPassantAllowed){
+					pseudoLegalMoves |= 1UL << enPassantSquare;
+				}
+
 				break;
 			
 		}
@@ -297,6 +318,7 @@ public partial class Chess
 		{
 			int nearestBlocker = g.BitScan(blockers, g.dirNums[dir] > 0); // Gotten by finding the LS1B or MS1B depending whether the direction is +ve or -ve
 			attacks ^= g.rayAttacks[nearestBlocker, dir];
+			// attacks &= ~(blockers & occupancyByColor[sideToMove]); // excludes same color blockers from target
 		}
 
 		return attacks;
