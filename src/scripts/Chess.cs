@@ -154,6 +154,19 @@ public partial class Chess
 		pieces[sideToMove, startPieceN] &= ~(1UL << startIndex);
 		pieces[sideToMove, startPieceN] |= 1UL << endIndex;
 
+		/* Enforcing Castling */
+		if (startPieceN == 0 && (startIndex % 8) == 4)
+		{
+			for (int sideN = 0; sideN < 2; sideN++)
+			{
+				if (endIndex == g.castlingKingPos[sideToMove, sideN]) // if king went queenside or kingside
+				{
+					pieces[sideToMove, 4] &= ~(1UL << g.castlingRookPosFrom[sideToMove, sideN]);
+					pieces[sideToMove, 4] |= 1UL << g.castlingRookPosTo[sideToMove, sideN];
+				}
+			}
+		}
+
 		/* Updating Castling Rights */
 		if (startPieceN == 0) // if king moved
 		{
@@ -163,16 +176,24 @@ public partial class Chess
 
 		if (startPieceN == 4 || endPieceN == 4) // if rook moved or got captured
 		{
-			if (startIndex == 0 || startIndex == 56 || // if queen's rook moved
-				endIndex == 0 || endIndex == 56) // if queen's rook got captured
+			if (startIndex == 0 || startIndex == 56) // if queen's rook moved
 			{
 				castlingRights[sideToMove, 0] = false;
 			}
 			
-			if (startIndex == 7 || startIndex == 63 || // if king's rook moved
-				endIndex == 7 || endIndex == 63) // if king's rook got captured
+			if (startIndex == 7 || startIndex == 63) // if king's rook moved
 			{
 				castlingRights[sideToMove, 1] = false;
+			}
+
+			if (endIndex == 0 || endIndex == 56) // if queen's rook got captured
+			{
+				castlingRights[1 - sideToMove, 0] = false;
+			}
+			
+			if (endIndex == 7 || endIndex == 63) // if king's rook got captured
+			{
+				castlingRights[1 - sideToMove, 1] = false;
 			}
 		}
 		
@@ -247,8 +268,22 @@ public partial class Chess
 
 		switch (pieceN)
 		{
+			// KING
 			case 0:
 				pseudoLegalMoves |= g.kingAttacks[index];
+
+				/* Detecting Castling */
+				for (int sideN = 0; sideN < 2; sideN++)
+				{
+					bool hasCastlingRight = castlingRights[sideToMove, sideN];
+					bool isPathClear = (occupancy & g.castlingMasks[sideToMove, sideN]) == 0;
+					// REMINDER: ADD CHECK RULES AND ENEMY CONTROLLED RULES FOR CASTLING
+
+					if (hasCastlingRight && isPathClear)
+					{
+						pseudoLegalMoves |= 1UL << g.castlingKingPos[sideToMove, sideN];
+					}
+				}
 				break;
 			
 			// QUEEN
@@ -295,6 +330,7 @@ public partial class Chess
 
 				pseudoLegalMoves |= g.pawnAttacks[sideToMove, index] & occupancyByColor[1 - sideToMove];
 
+				/* Detecting En Passant */
 				bool isEnPassantAllowed = (g.pawnAttacks[sideToMove, index] >> enPassantSquare & 1UL) == 1;
 				if (isEnPassantAllowed){
 					pseudoLegalMoves |= 1UL << enPassantSquare;

@@ -22,7 +22,7 @@ public partial class main : Node2D
 
 	public override void _Process(double delta) {
 		HighlightPossibleMoves();
-		// HighlightBitboard(g.pawnAttacks[1, 36]);
+		// HighlightBitboard(0x60);
 	}
 
 	public override void _UnhandledInput(InputEvent @event)

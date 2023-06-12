@@ -17,6 +17,13 @@ public static partial class g
 	public static ulong[] knightAttacks = new ulong[64]; // dimension is square
 	public static ulong[,] pawnMoves = new ulong[2, 64]; // dimensions are color and square
 	public static ulong[,] pawnAttacks = new ulong[2, 64]; // dimensions are color and square
+
+	public static ulong[,] castlingMasks = new ulong[2, 2] {{0xE, 0x60}, 
+															{0xE00000000000000, 0x6000000000000000}};
+	public static int[,] castlingKingPos = new int[2, 2] {{2, 6}, {58, 62}};
+	public static int[,] castlingRookPosFrom = new int[2, 2] {{0, 7}, {56, 63}};
+	public static int[,] castlingRookPosTo = new int[2, 2] {{3, 5}, {59, 61}};
+
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{
 		{0, 7}, // North West
