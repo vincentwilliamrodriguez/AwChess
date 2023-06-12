@@ -6,6 +6,7 @@ public partial class main : Node2D
 	public TileMap board_pieces_node;
 	public Script Chess;
 	public Chess cur;
+	// public int n = 0;
 	
 	public override void _Ready()
 	{
@@ -13,7 +14,7 @@ public partial class main : Node2D
 		Chess = (Script) GD.Load("res://src/scripts/Chess.cs");
 		cur = new Chess();
 		
-		g.InitAttacks();
+		g.Init();
 		cur.ImportFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
 		InitBoard();
@@ -22,7 +23,10 @@ public partial class main : Node2D
 
 	public override void _Process(double delta) {
 		HighlightPossibleMoves();
-		HighlightBitboard(cur.enemyAttacks);
+		// HighlightBitboard(g.inBetween[0,n]);
+		// n++;
+		// System.Threading.Thread.Sleep(500);
+
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -125,6 +129,16 @@ public partial class main : Node2D
 		ulong silentMoves = g.curHighlightedMoves & ~cur.occupancy;
 		ulong captureMoves = g.curHighlightedMoves & cur.occupancy;
 
+		foreach (int i in cur.lastMove)
+		{
+			if (i != -1)
+			{
+				int x = i % 8;
+				int y = 7 - (i / 8);
+				board_pieces_node.SetCell(3, new Vector2I(x, y), 4, new Vector2I(0, 0));
+			}
+		}
+
 		foreach (int i in g.Serialize(silentMoves))
 		{
 			int x = i % 8;
@@ -138,16 +152,6 @@ public partial class main : Node2D
 			int x = i % 8;
 			int y = 7 - (i / 8);
 			board_pieces_node.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
-		}
-
-		foreach (int i in cur.lastMove)
-		{
-			if (i != -1)
-			{
-				int x = i % 8;
-				int y = 7 - (i / 8);
-				board_pieces_node.SetCell(3, new Vector2I(x, y), 4, new Vector2I(0, 0));
-			}
 		}
 	}
 }

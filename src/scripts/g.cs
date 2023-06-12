@@ -26,6 +26,8 @@ public static partial class g
 
 	public static int[] promotionRank = new int[2] {7, 0};
 
+	public static ulong[,] inBetween = new ulong[64, 64];
+
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{
 		{0, 7}, // North West
@@ -110,7 +112,7 @@ public static partial class g
 		return (toFile >= 0 && toFile < 8 && toRank >= 0 && toRank < 8);
 	}
 
-	public static void InitAttacks() {
+	public static void Init() {
 		for (int from = 0; from < 64; from++)
 		{
 			/* Ray Attacks */
@@ -158,6 +160,22 @@ public static partial class g
 				if (pawnFile != 7) // if not on the H file
 				{
 					pawnAttacks[colorN, from] |= 1UL << (from + SinglePush(colorN) + 1);
+				}
+			}
+		}
+
+		for (int from = 0; from < 64; from++)
+		{
+			for (int to = 0; to < 64; to++)
+			{
+				inBetween[from, to] = 0UL;
+				for (int dir = 0; dir < 8; dir++)
+				{
+					ulong fromRay = rayAttacks[from, dir];
+					if (((fromRay >> to) & 1) == 1) // if 'to' is reached by 'fromRay'
+					{
+						inBetween[from, to] = fromRay ^ rayAttacks[to, dir];
+					}
 				}
 			}
 		}

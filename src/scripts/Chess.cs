@@ -9,7 +9,7 @@ public partial class Chess
 	public List<int>[,] piecesSer = new List<int>[2, 6];
 	public ulong[] occupancyByColor = new ulong[2];
 	public ulong occupancy = 0;
-	public ulong enemyAttacks = 0;
+	// public ulong enemyAttacks = 0;
 
 	public int sideToMove = 0; // 0 = white, 1 = black
 	public bool[,] castlingRights = new bool[,] {{true, true}, {true, true}};
@@ -255,7 +255,7 @@ public partial class Chess
 	}
 
 	public void GeneratePossibleMoves(){
-		enemyAttacks = 0UL;
+		// enemyAttacks = 0UL;
 
 		for (int pieceN = 0; pieceN < 6; pieceN++)
 		{
@@ -274,12 +274,12 @@ public partial class Chess
 				possibleMoves[pieceN].Add(pieceIndex, pieceMovesList);
 			}
 
-			/* Enemy Attacks Bitboard */
-			foreach (int pieceIndex in piecesSer[1 - sideToMove, pieceN])
-			{
-				ulong pieceMoves = GenerateMovesByIndex(pieceN, pieceIndex, 1 - sideToMove);
-				enemyAttacks |= pieceMoves;
-			}
+			// /* Enemy Attacks Bitboard */
+			// foreach (int pieceIndex in piecesSer[1 - sideToMove, pieceN])
+			// {
+			// 	ulong pieceMoves = GenerateMovesByIndex(pieceN, pieceIndex, 1 - sideToMove);
+			// 	enemyAttacks |= pieceMoves;
+			// }
 		}
 	}
 
