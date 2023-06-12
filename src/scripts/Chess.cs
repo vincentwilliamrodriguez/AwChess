@@ -154,6 +154,13 @@ public partial class Chess
 		pieces[sideToMove, startPieceN] &= ~(1UL << startIndex);
 		pieces[sideToMove, startPieceN] |= 1UL << endIndex;
 
+		/* Enforcing Promotion */
+		if (startPieceN == 5 && (endIndex / 8) == g.promotionRank[sideToMove])
+		{
+			pieces[sideToMove, 5] &= ~(1UL << endIndex);
+			pieces[sideToMove, 1] |= 1UL << endIndex; // only queen promotion is available for now
+		}
+
 		/* Enforcing Castling */
 		if (startPieceN == 0 && (startIndex % 8) == 4)
 		{

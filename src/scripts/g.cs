@@ -24,6 +24,8 @@ public static partial class g
 	public static int[,] castlingRookPosFrom = new int[2, 2] {{0, 7}, {56, 63}};
 	public static int[,] castlingRookPosTo = new int[2, 2] {{3, 5}, {59, 61}};
 
+	public static int[] promotionRank = new int[2] {7, 0};
+
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{
 		{0, 7}, // North West
