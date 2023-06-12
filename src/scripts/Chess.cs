@@ -9,6 +9,7 @@ public partial class Chess
 	public List<int>[,] piecesSer = new List<int>[2, 6];
 	public ulong[] occupancyByColor = new ulong[2];
 	public ulong occupancy = 0;
+	public ulong enemyAttacks = 0;
 
 	public int sideToMove = 0; // 0 = white, 1 = black
 	public bool[,] castlingRights = new bool[,] {{true, true}, {true, true}};
@@ -17,7 +18,8 @@ public partial class Chess
 	public int fullMoveCounter = 1;
 
 	public Dictionary<int, List<int>>[] possibleMoves = new Dictionary<int, List<int>>[6]; // only includes sideToMove
-	
+	public int[] lastMove = new int[] {-1, -1};
+
 	public Chess() {
 		GD.Print("g awaw");
 	}
@@ -241,23 +243,27 @@ public partial class Chess
 
 		/* Updating Side To Move */
 		sideToMove = 1 - sideToMove;
+		lastMove[0] = startIndex;
+		lastMove[1] = endIndex;
 
 		/* Updating Functions */
 		UpdateOccupancy();
 		UpdateSerialized();
 		GeneratePossibleMoves();
 
-		GD.Print(String.Format("Castling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", sideToMove, enPassantSquare, halfMoveClock, fullMoveCounter, castlingRights[0, 0]));
+		// GD.Print(String.Format("Castling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", sideToMove, enPassantSquare, halfMoveClock, fullMoveCounter, castlingRights[0, 0]));
 	}
 
 	public void GeneratePossibleMoves(){
+		enemyAttacks = 0UL;
+
 		for (int pieceN = 0; pieceN < 6; pieceN++)
 		{
 			possibleMoves[pieceN] = new Dictionary<int, List<int>> {};
 
 			foreach (int pieceIndex in piecesSer[sideToMove, pieceN])
 			{
-				ulong pieceMoves = GenerateMovesByIndex(pieceN, pieceIndex);
+				ulong pieceMoves = GenerateMovesByIndex(pieceN, pieceIndex, sideToMove);
 				List<int> pieceMovesList = new List<int> {};
 
 				foreach (int targetSquare in g.Serialize(pieceMoves))
@@ -267,10 +273,17 @@ public partial class Chess
 
 				possibleMoves[pieceN].Add(pieceIndex, pieceMovesList);
 			}
+
+			/* Enemy Attacks Bitboard */
+			foreach (int pieceIndex in piecesSer[1 - sideToMove, pieceN])
+			{
+				ulong pieceMoves = GenerateMovesByIndex(pieceN, pieceIndex, 1 - sideToMove);
+				enemyAttacks |= pieceMoves;
+			}
 		}
 	}
 
-	public ulong GenerateMovesByIndex(int pieceN, int index){
+	public ulong GenerateMovesByIndex(int pieceN, int index, int colorN){
 		ulong pseudoLegalMoves = 0;
 
 		switch (pieceN)
@@ -282,13 +295,13 @@ public partial class Chess
 				/* Detecting Castling */
 				for (int sideN = 0; sideN < 2; sideN++)
 				{
-					bool hasCastlingRight = castlingRights[sideToMove, sideN];
-					bool isPathClear = (occupancy & g.castlingMasks[sideToMove, sideN]) == 0;
+					bool hasCastlingRight = castlingRights[colorN, sideN];
+					bool isPathClear = (occupancy & g.castlingMasks[colorN, sideN]) == 0;
 					// REMINDER: ADD CHECK RULES AND ENEMY CONTROLLED RULES FOR CASTLING
 
 					if (hasCastlingRight && isPathClear)
 					{
-						pseudoLegalMoves |= 1UL << g.castlingKingPos[sideToMove, sideN];
+						pseudoLegalMoves |= 1UL << g.castlingKingPos[colorN, sideN];
 					}
 				}
 				break;
@@ -327,18 +340,18 @@ public partial class Chess
 			
 			// PAWN
 			case 5:
-				pseudoLegalMoves |= g.pawnMoves[sideToMove, index] & ~occupancy; // single push
+				pseudoLegalMoves |= g.pawnMoves[colorN, index] & ~occupancy; // single push
 
-				if ((index / 8) == g.DoubleStartRank(sideToMove) // if pawn is in home rank
+				if ((index / 8) == g.DoubleStartRank(colorN) // if pawn is in home rank
 					&& pseudoLegalMoves != 0) // if pawn move is not blocked in the single push
 				{
-					pseudoLegalMoves |= 1UL << (index + 2 * g.SinglePush(sideToMove)); // double push
+					pseudoLegalMoves |= 1UL << (index + 2 * g.SinglePush(colorN)); // double push
 				}
 
-				pseudoLegalMoves |= g.pawnAttacks[sideToMove, index] & occupancyByColor[1 - sideToMove];
+				pseudoLegalMoves |= g.pawnAttacks[colorN, index] & occupancyByColor[1 - colorN];
 
 				/* Detecting En Passant */
-				bool isEnPassantAllowed = (g.pawnAttacks[sideToMove, index] >> enPassantSquare & 1UL) == 1;
+				bool isEnPassantAllowed = (g.pawnAttacks[colorN, index] >> enPassantSquare & 1UL) == 1;
 				if (isEnPassantAllowed){
 					pseudoLegalMoves |= 1UL << enPassantSquare;
 				}
@@ -348,7 +361,7 @@ public partial class Chess
 		}
 
 		
-		pseudoLegalMoves &= ~occupancyByColor[sideToMove];
+		pseudoLegalMoves &= ~occupancyByColor[colorN];
 		return pseudoLegalMoves;
 	}
 

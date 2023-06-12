@@ -12,7 +12,7 @@ public partial class main : Node2D
 		board_pieces_node = (TileMap) GetNode("Board_Pieces");
 		Chess = (Script) GD.Load("res://src/scripts/Chess.cs");
 		cur = new Chess();
-
+		
 		g.InitAttacks();
 		cur.ImportFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
@@ -22,7 +22,7 @@ public partial class main : Node2D
 
 	public override void _Process(double delta) {
 		HighlightPossibleMoves();
-		// HighlightBitboard(0x60);
+		HighlightBitboard(cur.enemyAttacks);
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -48,7 +48,7 @@ public partial class main : Node2D
 
 					if (PieceMovesCount != 0)
 					{
-						g.curHighlightedMoves = cur.GenerateMovesByIndex(g.selectedPieceN, g.selectedPiece);
+						g.curHighlightedMoves = cur.GenerateMovesByIndex(g.selectedPieceN, g.selectedPiece, cur.sideToMove);
 						g.isMovingPiece = true;
 					}
 				}
@@ -129,7 +129,7 @@ public partial class main : Node2D
 		{
 			int x = i % 8;
 			int y = 7 - (i / 8);
-			board_pieces_node.SetCell(3, new Vector2I(x, y), 4, new Vector2I(0, 0));
+			board_pieces_node.SetCell(3, new Vector2I(x, y), 3, new Vector2I(0, 0));
 		}
 
 		
@@ -138,6 +138,16 @@ public partial class main : Node2D
 			int x = i % 8;
 			int y = 7 - (i / 8);
 			board_pieces_node.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
+		}
+
+		foreach (int i in cur.lastMove)
+		{
+			if (i != -1)
+			{
+				int x = i % 8;
+				int y = 7 - (i / 8);
+				board_pieces_node.SetCell(3, new Vector2I(x, y), 4, new Vector2I(0, 0));
+			}
 		}
 	}
 }
