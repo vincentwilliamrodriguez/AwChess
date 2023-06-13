@@ -6,7 +6,7 @@ using System.Linq;
 
 public static partial class g
 {
-	public static bool[] isPlayer = new bool[] {true, false};
+	public static bool[] isPlayer = new bool[] {false, false};
 	public static bool isMovingPiece = false;
 	public static int selectedPiece = -1; // [piece, index]
 	public static int selectedPieceN = -1;

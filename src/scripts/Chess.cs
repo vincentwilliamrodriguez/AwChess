@@ -257,7 +257,7 @@ public partial class Chess
 
 		var watch = System.Diagnostics.Stopwatch.StartNew();
 		
-		for (int i = 0; i < 10000; i++)
+		for (int i = 0; i < 1; i++)
 		{
 			GeneratePossibleMoves();
 		}

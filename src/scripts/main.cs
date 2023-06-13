@@ -1,5 +1,7 @@
 using Godot;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 public partial class main : Node2D
 {
@@ -25,10 +27,15 @@ public partial class main : Node2D
 
 	public override void _Process(double delta) {
 		HighlightPossibleMoves();
-		if (cur.pinnedPieces != 0UL)
-			HighlightBitboard(cur.pinnedMobility[g.BitScan(cur.pinnedPieces)]);
+		// if (cur.pinnedPieces != 0UL)
+		// 	HighlightBitboard(cur.pinnedMobility[g.BitScan(cur.pinnedPieces)]);
 		// n++;
-		// System.Threading.Thread.Sleep(500);
+		if (!g.isPlayer[cur.sideToMove])
+		{
+			System.Threading.Thread.Sleep(500);
+			RunAwChess();
+		}
+		
 
 	}
 
@@ -38,13 +45,13 @@ public partial class main : Node2D
 		{
 			Vector2I coor = board_pieces_node.LocalToMap(mouseEvent.Position);
 			
-			if (g.IsWithinBoard(coor.X, coor.Y))
+			if (g.IsWithinBoard(coor.X, coor.Y) & g.isPlayer[cur.sideToMove])
 			{
-				int sideToMove = cur.sideToMove;
+				/* HUMAN */
 				coor.Y = 7 - coor.Y;
 				int targetIndex = g.ToIndex(coor.X, coor.Y);
 				bool isTargetOccupied = Convert.ToBoolean(
-										cur.occupancyByColor[sideToMove] >> targetIndex
+										cur.occupancyByColor[cur.sideToMove] >> targetIndex
 										& 1UL); // checking if target square has a same color piece
 
 				if (!g.isMovingPiece && isTargetOccupied)
@@ -167,6 +174,32 @@ public partial class main : Node2D
 			int y = 7 - (cur.kingPos / 8);
 			board_pieces_node.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
 		}
+	}
+
+	public void RunAwChess()
+	{
+		/* AWCHESS */
+		List<int[]> flattenedMoves = new List<int[]> {};
+
+		foreach (var pieceType in cur.possibleMoves)
+		{
+			foreach (var piece in pieceType.Keys.ToList())
+			{
+				foreach (var move in g.Serialize(pieceType[piece]))
+				{
+					flattenedMoves.Add(new int[2] {piece, move});
+				}
+			}
+		}
+
+		Random random = new Random();
+		int randomMove = random.Next(flattenedMoves.Count);
+		int randomStart = flattenedMoves[randomMove][0];
+		int randomEnd = flattenedMoves[randomMove][1];
+
+		cur.MakeMove(randomStart, randomEnd);
+		UpdatePieces();
+		HighlightPossibleMoves();
 	}
 }
 
