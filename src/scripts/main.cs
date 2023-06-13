@@ -25,7 +25,8 @@ public partial class main : Node2D
 
 	public override void _Process(double delta) {
 		HighlightPossibleMoves();
-		HighlightBitboard(cur.checkingPieces);
+		if (cur.pinnedPieces != 0UL)
+			HighlightBitboard(cur.pinnedMobility[g.BitScan(cur.pinnedPieces)]);
 		// n++;
 		// System.Threading.Thread.Sleep(500);
 

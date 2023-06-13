@@ -18,6 +18,8 @@ public partial class Chess
 	public int fullMoveCounter = 1;
 	public bool isInCheck = false;
 	public ulong checkingPieces = 0UL;
+	public ulong pinnedPieces = 0UL;
+	public Dictionary<int, ulong> pinnedMobility = new Dictionary<int, ulong> {};
 	public int kingPos = -1;
 
 	public Dictionary<int, ulong>[] possibleMoves = new Dictionary<int, ulong>[6]; // only includes sideToMove
@@ -275,6 +277,9 @@ public partial class Chess
 			checkingPieces = GetCheckingPieces(kingPos, sideToMove);
 		else
 			checkingPieces = 0UL;
+		
+		pinnedMobility = new Dictionary<int, ulong> {};
+		pinnedPieces = GetPinnedPieces();
 
 		for (int pieceN = 0; pieceN < 6; pieceN++)
 		{
@@ -394,7 +399,14 @@ public partial class Chess
 		/* GENERATING LEGAL MOVES */
 		ulong legalMoves = pseudoLegalMoves;
 
-		if (isInCheck & !(pieceN == 0))// not including king since its moves have already been filtered
+		/* Absolutely Pinned Pieces */
+		if ((pinnedPieces >> index & 1UL) == 1) // if piece is pinned
+		{
+			legalMoves &= pinnedMobility[index];
+		}
+
+		/* Capturing and Blocking Checking Pieces */
+		if (isInCheck & !(pieceN == 0)) // not including king since its moves have already been filtered
 		{
 			if (g.Serialize(checkingPieces).Count == 1)
 			{
@@ -445,7 +457,7 @@ public partial class Chess
 		ulong blockers = attacks & occupancy;
 
 		if (checking)
-		blockers &= ~(1UL << kingPos); // removing king from blockers to avoid check problems
+			blockers &= ~(1UL << kingPos); // removing king from blockers to avoid check problems
 
 		if (blockers != 0UL)
 		{
@@ -455,6 +467,46 @@ public partial class Chess
 
 		return attacks;
 	}
+
+	public ulong GetXRayAttack(ulong blockers, ulong tOccupancy, int index, int dir)
+	{
+		ulong attacks = g.rayAttacks[index, dir];
+		blockers &= attacks;
+		tOccupancy &= attacks;
+		if (blockers == 0UL) {return 0UL;}
+
+		int nearestBlocker = g.BitScan(blockers, g.dirNums[dir] > 0);
+		int secondNearestBlocker = g.BitScan(tOccupancy & ~(1UL << nearestBlocker), g.dirNums[dir] > 0);
+
+		if (secondNearestBlocker == -1) {return g.rayAttacks[nearestBlocker, dir];}
+		
+		return g.inBetween[nearestBlocker, secondNearestBlocker];
+	}
+
+	public ulong GenerateRookXRay(ulong blockers, ulong tOccupancy, int index)
+	{
+		ulong output = 0UL;
+
+		for (int dir = 1; dir < 8; dir += 2)
+		{
+			output |= GetXRayAttack(blockers, tOccupancy, index, dir);
+		}
+
+		return output;
+	}
+
+	public ulong GenerateBishopXRay(ulong blockers, ulong tOccupancy, int index)
+	{
+		ulong output = 0UL;
+
+		for (int dir = 0; dir < 8; dir += 2)
+		{
+			output |= GetXRayAttack(blockers, tOccupancy, index, dir);
+		}
+
+		return output;
+	}
+
 
 	public bool IsKingInCheck(int kingIndex, int colorN)
 	{
@@ -503,5 +555,54 @@ public partial class Chess
 			   (enemyKnights & kingAsKnight) |
 			   (enemyRQ & kingAsRook) |
 			   (enemyBQ & kingAsBishop);
+	}
+
+	public ulong GetPinnedPieces()
+	{
+		ulong pinned = 0UL;
+		ulong pinners = GenerateRookXRay(occupancyByColor[sideToMove], // own pieces as nearest blocker
+										 occupancy, // all pieces as second nearest blocker
+										 kingPos);
+		pinners &= pieces[1 - sideToMove, 4] | // get opponent's rooks
+				   pieces[1 - sideToMove, 1];  // get opponent's queens
+		pinners &= ~occupancyByColor[sideToMove];
+
+		foreach (int pinner in g.Serialize(pinners))
+		{
+			ulong tPinned = g.inBetween[kingPos, pinner] & occupancyByColor[sideToMove]; // own pieces between king and pinner
+			pinned |= tPinned;
+
+			foreach (int pinnedIndex in g.Serialize(tPinned))
+			{
+				if (!pinnedMobility.ContainsKey(pinnedIndex))
+				{
+					pinnedMobility.Add(pinnedIndex, g.inBetween[kingPos, pinner]);
+				}
+			}
+		}
+
+
+		pinners = GenerateBishopXRay(occupancyByColor[sideToMove],
+										 occupancy,
+										 kingPos);
+		pinners &= pieces[1 - sideToMove, 2] | // get opponent's bishops
+				   pieces[1 - sideToMove, 1];  // get opponent's queens
+		pinners &= ~occupancyByColor[sideToMove];
+
+		foreach (int pinner in g.Serialize(pinners))
+		{
+			ulong tPinned = g.inBetween[kingPos, pinner] & occupancyByColor[sideToMove];
+			pinned |= tPinned;
+
+			foreach (int pinnedIndex in g.Serialize(tPinned))
+			{
+				if (!pinnedMobility.ContainsKey(pinnedIndex))
+				{
+					pinnedMobility.Add(pinnedIndex, g.inBetween[kingPos, pinner]);
+				}
+			}
+		}
+
+		return pinned;
 	}
 }
