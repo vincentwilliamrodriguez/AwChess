@@ -16,8 +16,11 @@ public partial class Chess
 	public int enPassantSquare = -1;
 	public int halfMoveClock = 0;
 	public int fullMoveCounter = 1;
+	public bool isInCheck = false;
+	public ulong checkingPieces = 0UL;
+	public int kingPos = -1;
 
-	public Dictionary<int, List<int>>[] possibleMoves = new Dictionary<int, List<int>>[6]; // only includes sideToMove
+	public Dictionary<int, ulong>[] possibleMoves = new Dictionary<int, ulong>[6]; // only includes sideToMove
 	public int[] lastMove = new int[] {-1, -1};
 
 	public Chess() {
@@ -249,29 +252,38 @@ public partial class Chess
 		/* Updating Functions */
 		UpdateOccupancy();
 		UpdateSerialized();
-		GeneratePossibleMoves();
+
+		var watch = System.Diagnostics.Stopwatch.StartNew();
+		
+		for (int i = 0; i < 10000; i++)
+		{
+			GeneratePossibleMoves();
+		}
+
+		watch.Stop();
+		GD.Print(watch.ElapsedMilliseconds);
 
 		// GD.Print(String.Format("Castling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", sideToMove, enPassantSquare, halfMoveClock, fullMoveCounter, castlingRights[0, 0]));
 	}
 
 	public void GeneratePossibleMoves(){
 		// enemyAttacks = 0UL;
+		kingPos = g.BitScan(pieces[sideToMove, 0]);
+		isInCheck = IsKingInCheck(kingPos, sideToMove);
+
+		if (isInCheck)
+			checkingPieces = GetCheckingPieces(kingPos, sideToMove);
+		else
+			checkingPieces = 0UL;
 
 		for (int pieceN = 0; pieceN < 6; pieceN++)
 		{
-			possibleMoves[pieceN] = new Dictionary<int, List<int>> {};
+			possibleMoves[pieceN] = new Dictionary<int, ulong> {};
 
 			foreach (int pieceIndex in piecesSer[sideToMove, pieceN])
 			{
 				ulong pieceMoves = GenerateMovesByIndex(pieceN, pieceIndex, sideToMove);
-				List<int> pieceMovesList = new List<int> {};
-
-				foreach (int targetSquare in g.Serialize(pieceMoves))
-				{
-					pieceMovesList.Add(targetSquare);
-				}
-
-				possibleMoves[pieceN].Add(pieceIndex, pieceMovesList);
+				possibleMoves[pieceN].Add(pieceIndex, pieceMoves);
 			}
 
 			// /* Enemy Attacks Bitboard */
@@ -284,6 +296,8 @@ public partial class Chess
 	}
 
 	public ulong GenerateMovesByIndex(int pieceN, int index, int colorN){
+
+		/* GENERATING (MOSTLY) PSEUDO-LEGAL MOVES */
 		ulong pseudoLegalMoves = 0;
 
 		switch (pieceN)
@@ -291,51 +305,68 @@ public partial class Chess
 			// KING
 			case 0:
 				pseudoLegalMoves |= g.kingAttacks[index];
+				pseudoLegalMoves &= ~occupancyByColor[colorN];
 
 				/* Detecting Castling */
 				for (int sideN = 0; sideN < 2; sideN++)
 				{
+					ulong path = g.castlingMasks[colorN, sideN];
 					bool hasCastlingRight = castlingRights[colorN, sideN];
-					bool isPathClear = (occupancy & g.castlingMasks[colorN, sideN]) == 0;
-					// REMINDER: ADD CHECK RULES AND ENEMY CONTROLLED RULES FOR CASTLING
+					bool isPathClear = (occupancy & path) == 0;
 
-					if (hasCastlingRight && isPathClear)
+					if (!isInCheck && hasCastlingRight && isPathClear)
 					{
-						pseudoLegalMoves |= 1UL << g.castlingKingPos[colorN, sideN];
+						bool isPathSafe = true;
+						
+						foreach (int square in g.Serialize(path))
+						{
+							if (IsKingInCheck(square, colorN))
+							{
+								isPathSafe = false;
+								break;
+							}
+						}
+
+						if (isPathSafe)
+						{
+							pseudoLegalMoves |= 1UL << g.castlingKingPos[colorN, sideN];
+						}
 					}
 				}
+
+				/* Filtering out illegal moves (king stepping to attacked squares) */
+				foreach (int move in g.Serialize(pseudoLegalMoves))
+				{
+					if (IsKingInCheck(move, colorN))
+					{
+						pseudoLegalMoves &= ~(1UL << move);
+					}
+				}
+
 				break;
 			
 			// QUEEN
 			case 1:
-				for (int dir = 0; dir < 8; dir++)
-				{
-					pseudoLegalMoves |= GetBlockedRayAttack(index, dir);
-				}
-
+				pseudoLegalMoves |= GenerateRookAttacks(index) | GenerateBishopAttacks(index);
+				pseudoLegalMoves &= ~occupancyByColor[colorN];
 				break;
 			
 			// BISHOP
 			case 2:
-				for (int dir = 0; dir < 8; dir += 2)
-				{
-					pseudoLegalMoves |= GetBlockedRayAttack(index, dir);
-				}
-
+				pseudoLegalMoves |= GenerateBishopAttacks(index);
+				pseudoLegalMoves &= ~occupancyByColor[colorN];
 				break;
 			
 			// KNIGHT
 			case 3:
 				pseudoLegalMoves |= g.knightAttacks[index];
+				pseudoLegalMoves &= ~occupancyByColor[colorN];
 				break;
 			
 			// ROOK
 			case 4:
-				for (int dir = 1; dir < 8; dir += 2)
-				{
-					pseudoLegalMoves |= GetBlockedRayAttack(index, dir);
-				}
-
+				pseudoLegalMoves |= GenerateRookAttacks(index);
+				pseudoLegalMoves &= ~occupancyByColor[colorN];
 				break;
 			
 			// PAWN
@@ -345,7 +376,7 @@ public partial class Chess
 				if ((index / 8) == g.DoubleStartRank(colorN) // if pawn is in home rank
 					&& pseudoLegalMoves != 0) // if pawn move is not blocked in the single push
 				{
-					pseudoLegalMoves |= 1UL << (index + 2 * g.SinglePush(colorN)); // double push
+					pseudoLegalMoves |= 1UL << (index + 2 * g.SinglePush(colorN)) & ~occupancy; // double push
 				}
 
 				pseudoLegalMoves |= g.pawnAttacks[colorN, index] & occupancyByColor[1 - colorN];
@@ -360,23 +391,117 @@ public partial class Chess
 			
 		}
 
+		/* GENERATING LEGAL MOVES */
+		ulong legalMoves = pseudoLegalMoves;
+
+		if (isInCheck & !(pieceN == 0))// not including king since its moves have already been filtered
+		{
+			if (g.Serialize(checkingPieces).Count == 1)
+			{
+				ulong capturingMoves = legalMoves & checkingPieces;
+
+				int checkingPieceIndex = g.BitScan(checkingPieces);
+				ulong checkingPath = g.inBetween[kingPos, checkingPieceIndex];
+				ulong blockingMoves = legalMoves & checkingPath;
+
+				legalMoves &= capturingMoves | blockingMoves;
+			}
+			else
+			{
+				legalMoves = 0UL; // can only capture or block during single checks
+			}
+		}
 		
-		pseudoLegalMoves &= ~occupancyByColor[colorN];
-		return pseudoLegalMoves;
+		return legalMoves;
 	}
 
-	public ulong GetBlockedRayAttack(int index, int dir)
+	public ulong GenerateRookAttacks(int index, bool checking = false)
+	{
+		ulong output = 0UL;
+
+		for (int dir = 1; dir < 8; dir += 2)
+		{
+			output |= GetBlockedRayAttack(index, dir, checking);
+		}
+
+		return output;
+	}
+
+	public ulong GenerateBishopAttacks(int index, bool checking = false)
+	{
+		ulong output = 0UL;
+
+		for (int dir = 0; dir < 8; dir += 2)
+		{
+			output |= GetBlockedRayAttack(index, dir, checking);
+		}
+
+		return output;
+	}
+
+	public ulong GetBlockedRayAttack(int index, int dir, bool checking = false)
 	{
 		ulong attacks = g.rayAttacks[index, dir];
 		ulong blockers = attacks & occupancy;
+
+		if (checking)
+		blockers &= ~(1UL << kingPos); // removing king from blockers to avoid check problems
 
 		if (blockers != 0UL)
 		{
 			int nearestBlocker = g.BitScan(blockers, g.dirNums[dir] > 0); // Gotten by finding the LS1B or MS1B depending whether the direction is +ve or -ve
 			attacks ^= g.rayAttacks[nearestBlocker, dir];
-			// attacks &= ~(blockers & occupancyByColor[sideToMove]); // excludes same color blockers from target
 		}
 
 		return attacks;
+	}
+
+	public bool IsKingInCheck(int kingIndex, int colorN)
+	{
+		ulong enemyPawns = pieces[1 - colorN, 5];
+		ulong kingAsPawn = g.pawnAttacks[colorN, kingIndex];
+		if ((enemyPawns & kingAsPawn) != 0UL) {return true;}
+
+		ulong enemyKnights = pieces[1 - colorN, 3];
+		ulong kingAsKnight = g.knightAttacks[kingIndex];
+		if ((enemyKnights & kingAsKnight) != 0UL)  {return true;}
+
+		ulong enemyRQ = pieces[1 - colorN, 4] | 
+						pieces[1 - colorN, 1];
+		ulong kingAsRook = GenerateRookAttacks(kingIndex, true);
+		if ((enemyRQ & kingAsRook) != 0UL)  {return true;}
+
+		ulong enemyBQ = pieces[1 - colorN, 2] | 
+						pieces[1 - colorN, 1];
+		ulong kingAsBishop = GenerateBishopAttacks(kingIndex, true);
+		if ((enemyBQ & kingAsBishop) != 0UL)  {return true;}
+
+		ulong enemyKing = pieces[1 - colorN, 0];
+		ulong kingAsKing = g.kingAttacks[kingIndex];
+		if ((enemyKing & kingAsKing) != 0UL)  {return true;}
+
+		return false;
+	}
+	
+	public ulong GetCheckingPieces(int kingIndex, int colorN)
+	{
+		ulong enemyPawns = pieces[1 - colorN, 5];
+		ulong kingAsPawn = g.pawnAttacks[colorN, kingIndex];
+
+		ulong enemyKnights = pieces[1 - colorN, 3];
+		ulong kingAsKnight = g.knightAttacks[kingIndex];
+
+		ulong enemyRQ = pieces[1 - colorN, 4] | 
+						pieces[1 - colorN, 1];
+		ulong kingAsRook = GenerateRookAttacks(kingIndex, true);
+
+		ulong enemyBQ = pieces[1 - colorN, 2] | 
+						pieces[1 - colorN, 1];
+		ulong kingAsBishop = GenerateBishopAttacks(kingIndex, true);
+
+		return (enemyPawns & kingAsPawn) |
+			   (enemyKnights & kingAsKnight) |
+			   (enemyRQ & kingAsRook) |
+			   (enemyBQ & kingAsBishop);
 	}
 }

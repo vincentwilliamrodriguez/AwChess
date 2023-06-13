@@ -87,3 +87,11 @@ layer_3/y_sort_enabled = false
 layer_3/y_sort_origin = 0
 layer_3/z_index = 0
 layer_3/tile_data = PackedInt32Array()
+
+[node name="TurnIndicator" type="ColorRect" parent="."]
+modulate = Color(1, 1, 1, 0.490196)
+offset_left = 1166.0
+offset_top = 457.0
+offset_right = 1316.0
+offset_bottom = 607.0
+size_flags_horizontal = 8

@@ -3,14 +3,16 @@ using System;
 
 public partial class main : Node2D
 {
-	public TileMap board_pieces_node;
 	public Script Chess;
 	public Chess cur;
+	public TileMap board_pieces_node;
+	public ColorRect turnIndicator;
 	// public int n = 0;
 	
 	public override void _Ready()
 	{
 		board_pieces_node = (TileMap) GetNode("Board_Pieces");
+		turnIndicator = (ColorRect) GetNode("TurnIndicator");
 		Chess = (Script) GD.Load("res://src/scripts/Chess.cs");
 		cur = new Chess();
 		
@@ -23,7 +25,7 @@ public partial class main : Node2D
 
 	public override void _Process(double delta) {
 		HighlightPossibleMoves();
-		// HighlightBitboard(g.inBetween[0,n]);
+		HighlightBitboard(cur.checkingPieces);
 		// n++;
 		// System.Threading.Thread.Sleep(500);
 
@@ -48,18 +50,19 @@ public partial class main : Node2D
 				{
 					g.selectedPiece = targetIndex;
 					g.selectedPieceN = cur.FindPieceN(g.selectedPiece);
-					int PieceMovesCount = cur.possibleMoves[g.selectedPieceN][g.selectedPiece].Count;
+					ulong PieceMoves = cur.possibleMoves[g.selectedPieceN][g.selectedPiece];
 
-					if (PieceMovesCount != 0)
+					if (PieceMoves != 0UL)
 					{
-						g.curHighlightedMoves = cur.GenerateMovesByIndex(g.selectedPieceN, g.selectedPiece, cur.sideToMove);
+						g.curHighlightedMoves = cur.possibleMoves[g.selectedPieceN][g.selectedPiece];
 						g.isMovingPiece = true;
 					}
 				}
 
 				else if (g.isMovingPiece)
 				{
-					if (cur.possibleMoves[g.selectedPieceN][g.selectedPiece].Contains(targetIndex)) // Checks if move is part of generated moves
+					ulong pieceMoves = cur.possibleMoves[g.selectedPieceN][g.selectedPiece];
+					if ((pieceMoves >> targetIndex & 1UL) == 1) // Checks if move is part of generated moves
 					{
 						cur.MakeMove(g.selectedPiece, targetIndex);
 						UpdatePieces();
@@ -89,6 +92,9 @@ public partial class main : Node2D
 
 	public void UpdatePieces() {
 		board_pieces_node.ClearLayer(1);
+		
+		Color turnColor = (cur.sideToMove == 0) ? new Color(1, 1, 1, 1) : new Color(0, 0, 0, 1);
+		turnIndicator.Color = turnColor;
 
 		for (int colorN = 0; colorN < 2; colorN++) {
 			for (int pieceN = 0; pieceN < 6; pieceN++) {
@@ -151,6 +157,13 @@ public partial class main : Node2D
 		{
 			int x = i % 8;
 			int y = 7 - (i / 8);
+			board_pieces_node.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
+		}
+
+		if (cur.isInCheck)
+		{
+			int x = cur.kingPos % 8;
+			int y = 7 - (cur.kingPos / 8);
 			board_pieces_node.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
 		}
 	}
