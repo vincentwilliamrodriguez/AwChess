@@ -30,10 +30,16 @@ public partial class main : Node2D
 		// if (cur.pinnedPieces != 0UL)
 			// HighlightBitboard(ulong.MaxValue);
 		// n++;
-		if (!g.isPlayer[cur.sideToMove])
+		if (cur.gameOutcome == -1 && !g.isPlayer[cur.sideToMove])
 		{
-			System.Threading.Thread.Sleep(500);
+			// System.Threading.Thread.Sleep(500);
+
+			var watch = System.Diagnostics.Stopwatch.StartNew();
+
 			RunAwChess();
+
+			watch.Stop();
+			GD.Print(watch.ElapsedMilliseconds);
 		}
 		
 
@@ -45,7 +51,7 @@ public partial class main : Node2D
 		{
 			Vector2I coor = board_pieces_node.LocalToMap(mouseEvent.Position);
 			
-			if (g.IsWithinBoard(coor.X, coor.Y) & g.isPlayer[cur.sideToMove])
+			if (g.IsWithinBoard(coor.X, coor.Y) && g.isPlayer[cur.sideToMove] && cur.gameOutcome == -1)
 			{
 				/* HUMAN */
 				coor.Y = 7 - coor.Y;
@@ -179,18 +185,7 @@ public partial class main : Node2D
 	public void RunAwChess()
 	{
 		/* AWCHESS */
-		List<int[]> flattenedMoves = new List<int[]> {};
-
-		foreach (var pieceType in cur.possibleMoves)
-		{
-			foreach (var piece in pieceType.Keys.ToList())
-			{
-				foreach (var move in g.Serialize(pieceType[piece]))
-				{
-					flattenedMoves.Add(new int[2] {piece, move});
-				}
-			}
-		}
+		List<int[]> flattenedMoves = cur.flattenPossibleMoves();
 
 		Random random = new Random();
 		int randomMove = random.Next(flattenedMoves.Count);

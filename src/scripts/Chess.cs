@@ -2,11 +2,13 @@ using Godot;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 public partial class Chess
 {
 	public ulong[,] pieces = new ulong[2, 6];
 	public List<int>[,] piecesSer = new List<int>[2, 6];
+	public int[,] piecesCount = new int[2, 6];
 	public ulong[] occupancyByColor = new ulong[2];
 	public ulong occupancy = 0;
 	// public ulong enemyAttacks = 0;
@@ -24,6 +26,7 @@ public partial class Chess
 
 	public Dictionary<int, ulong>[] possibleMoves = new Dictionary<int, ulong>[6]; // only includes sideToMove
 	public int[] lastMove = new int[] {-1, -1};
+	public int gameOutcome = -1; // -1 = ongoing, 0 = white won, 1 = black won, 2 = draw
 
 	public Chess() {
 		GD.Print("g awaw");
@@ -86,11 +89,15 @@ public partial class Chess
 		fullMoveCounter = Convert.ToInt32(fields[5]);
 
 
+		Update();
+	}
 
+	public void Update()
+	{
 		UpdateOccupancy();
 		UpdateSerialized();
 		GeneratePossibleMoves();
-		// GD.Print(String.Format("FEN\nCastling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}", sideToMove, enPassantSquare, halfMoveClock, fullMoveCounter, castlingRights[0, 0]));
+		CheckGameOutcome();
 	}
 
 	public void UpdateOccupancy() {
@@ -114,8 +121,41 @@ public partial class Chess
 			for (int pieceN = 0; pieceN < 6; pieceN++)
 			{
 				piecesSer[colorN, pieceN] = g.Serialize(pieces[colorN, pieceN]);
+				piecesCount[colorN, pieceN] = piecesSer[colorN, pieceN].Count;
 			}
 		}
+	}
+
+	public void CheckGameOutcome()
+	{
+		if (flattenPossibleMoves().Count > 0)
+		{
+
+			bool insufficientMaterial = piecesCount.Cast<int>().Sum() == 2;
+			bool fiftyMoveRule = halfMoveClock >= 100;
+
+			if (insufficientMaterial || fiftyMoveRule)
+			{
+				gameOutcome = 2; // draw
+			}
+			else
+			{
+				gameOutcome = -1; // ongoing
+			}
+		}
+		else
+		{
+			if (isInCheck)
+			{
+				gameOutcome = 1 - sideToMove; // checkmate
+			}
+			else
+			{
+				gameOutcome = 2; // stalemate
+			}
+		}
+
+		GD.Print("Game outcome: ", gameOutcome);
 	}
 
 	public int FindPieceN(int index) {
@@ -252,18 +292,7 @@ public partial class Chess
 		lastMove[1] = endIndex;
 
 		/* Updating Functions */
-		UpdateOccupancy();
-		UpdateSerialized();
-
-		var watch = System.Diagnostics.Stopwatch.StartNew();
-		
-		for (int i = 0; i < 1; i++)
-		{
-			GeneratePossibleMoves();
-		}
-
-		watch.Stop();
-		GD.Print(watch.ElapsedMilliseconds);
+		Update();
 
 		// GD.Print(String.Format("Castling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", sideToMove, enPassantSquare, halfMoveClock, fullMoveCounter, castlingRights[0, 0]));
 	}
@@ -298,6 +327,24 @@ public partial class Chess
 			// 	enemyAttacks |= pieceMoves;
 			// }
 		}
+	}
+
+	public List<int[]> flattenPossibleMoves()
+	{
+		List<int[]> flattenedMoves = new List<int[]> {};
+
+		foreach (var pieceType in possibleMoves)
+		{
+			foreach (var piece in pieceType.Keys.ToList())
+			{
+				foreach (var move in g.Serialize(pieceType[piece]))
+				{
+					flattenedMoves.Add(new int[2] {piece, move});
+				}
+			}
+		}
+
+		return flattenedMoves;
 	}
 
 	public ulong GenerateMovesByIndex(int pieceN, int index, int colorN){
