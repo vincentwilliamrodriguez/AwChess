@@ -11,6 +11,7 @@ public static partial class g
 	public static int selectedPiece = -1; // [piece, index]
 	public static int selectedPieceN = -1;
 	public static ulong curHighlightedMoves = 0UL;
+	public static string startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 	public static ulong[,] rayAttacks = new ulong[64,8]; // dimensions are square and direction (starting from NW clockwise)
 	public static ulong[] kingAttacks = new ulong[64]; // dimension is square

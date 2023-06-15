@@ -19,7 +19,7 @@ public partial class main : Node2D
 		cur = new Chess();
 		
 		g.Init();
-		cur.ImportFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+		cur.ImportFromFEN(g.startingPosition);
 
 		InitBoard();
 		UpdatePieces();	
@@ -28,7 +28,7 @@ public partial class main : Node2D
 	public override void _Process(double delta) {
 		HighlightPossibleMoves();
 		// if (cur.pinnedPieces != 0UL)
-		// 	HighlightBitboard(cur.pinnedMobility[g.BitScan(cur.pinnedPieces)]);
+			// HighlightBitboard(ulong.MaxValue);
 		// n++;
 		if (!g.isPlayer[cur.sideToMove])
 		{

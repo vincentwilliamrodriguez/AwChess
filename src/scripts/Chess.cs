@@ -389,7 +389,20 @@ public partial class Chess
 				/* Detecting En Passant */
 				bool isEnPassantAllowed = (g.pawnAttacks[colorN, index] >> enPassantSquare & 1UL) == 1;
 				if (isEnPassantAllowed){
-					pseudoLegalMoves |= 1UL << enPassantSquare;
+					int enPassantTarget = enPassantSquare + g.SinglePush(1 - sideToMove);
+					ulong tOccupancy = occupancy & ~(1UL << enPassantTarget);  // "remove" en passant target from board
+
+					ulong enemiesAfterEnPassant = GenerateRookXRay(occupancyByColor[sideToMove],
+																   tOccupancy,
+																   kingPos);
+					enemiesAfterEnPassant &= pieces[1 - sideToMove, 4] |
+											 pieces[1 - sideToMove, 1];
+					enemiesAfterEnPassant &= ~occupancyByColor[sideToMove];
+					
+					if (enemiesAfterEnPassant == 0)
+					{
+						pseudoLegalMoves |= 1UL << enPassantSquare;
+					}
 				}
 
 				break;
