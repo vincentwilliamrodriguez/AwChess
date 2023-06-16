@@ -73,20 +73,27 @@ layer_1/y_sort_enabled = false
 layer_1/y_sort_origin = 0
 layer_1/z_index = 1
 layer_1/tile_data = PackedInt32Array()
-layer_2/name = "highlight"
+layer_2/name = "debug"
 layer_2/enabled = true
 layer_2/modulate = Color(1, 1, 1, 0.360784)
 layer_2/y_sort_enabled = false
 layer_2/y_sort_origin = 0
 layer_2/z_index = 2
 layer_2/tile_data = PackedInt32Array()
-layer_3/name = ""
+layer_3/name = "highlight"
 layer_3/enabled = true
 layer_3/modulate = Color(1, 1, 1, 0.356863)
 layer_3/y_sort_enabled = false
 layer_3/y_sort_origin = 0
 layer_3/z_index = 0
 layer_3/tile_data = PackedInt32Array()
+layer_4/name = "promotion"
+layer_4/enabled = true
+layer_4/modulate = Color(1, 1, 1, 1)
+layer_4/y_sort_enabled = false
+layer_4/y_sort_origin = 0
+layer_4/z_index = 1
+layer_4/tile_data = PackedInt32Array()
 
 [node name="TurnIndicator" type="ColorRect" parent="."]
 modulate = Color(1, 1, 1, 0.490196)
@@ -95,3 +102,15 @@ offset_top = 457.0
 offset_right = 1316.0
 offset_bottom = 607.0
 size_flags_horizontal = 8
+
+[node name="GridContainer" type="GridContainer" parent="."]
+offset_right = 40.0
+offset_bottom = 40.0
+size_flags_horizontal = 8
+
+[node name="PromotionBackground" type="Sprite2D" parent="."]
+visible = false
+modulate = Color(1, 1, 1, 0.560784)
+position = Vector2(1197, 133)
+scale = Vector2(1.95, 1.95)
+texture = ExtResource("5_djxg1")

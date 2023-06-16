@@ -7,6 +7,7 @@ using System.Linq;
 public static partial class g
 {
 	public static bool[] isPlayer = new bool[] {false, false};
+	public static bool isBoardFlipped = isPlayer[1] && !isPlayer[0]; // only flip when black is player but not both
 	public static bool isMovingPiece = false;
 	public static int selectedPiece = -1; // [piece, index]
 	public static int selectedPieceN = -1;
@@ -26,6 +27,9 @@ public static partial class g
 	public static int[,] castlingRookPosTo = new int[2, 2] {{3, 5}, {59, 61}};
 
 	public static int[] promotionRank = new int[2] {7, 0};
+	public static int[] promotionPieces = new int[4] {1, 2, 3, 4};
+	public static int promotionTarget = -1;
+	public static bool isPromoting = false;
 
 	public static ulong[,] inBetween = new ulong[64, 64];
 
@@ -98,6 +102,10 @@ public static partial class g
 
 	public static int SinglePush(int color) {
 		return (color == 0) ? 8 : -8;
+	}
+
+	public static int CanFlip(int n) {
+		return isBoardFlipped ? 7-n : n;
 	}
 
 	public static bool WrapCheck(int from, int add) {

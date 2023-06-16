@@ -186,7 +186,7 @@ public partial class Chess
 		return -1;
 	}
 
-	public void MakeMove(int startIndex, int endIndex) {
+	public void MakeMove(int startIndex, int endIndex, int promotionPiece = -1) {
 		/* Updating Pieces */
 		int endPieceN = -1;
 		bool isWhitesTurn = sideToMove == 0;
@@ -205,7 +205,7 @@ public partial class Chess
 		if (startPieceN == 5 && (endIndex / 8) == g.promotionRank[sideToMove])
 		{
 			pieces[sideToMove, 5] &= ~(1UL << endIndex);
-			pieces[sideToMove, 1] |= 1UL << endIndex; // only queen promotion is available for now
+			pieces[sideToMove, promotionPiece] |= 1UL << endIndex;
 		}
 
 		/* Enforcing Castling */
