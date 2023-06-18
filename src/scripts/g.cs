@@ -13,6 +13,8 @@ public static partial class g
 	public static int selectedPieceN = -1;
 	public static ulong curHighlightedMoves = 0UL;
 	public static string startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+	public static char[] piecesArray = new char[] {'k', 'q', 'b', 'n', 'r', 'p'};
+	public static char[] fileArray = new char[] {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 
 	public static ulong[,] rayAttacks = new ulong[64,8]; // dimensions are square and direction (starting from NW clockwise)
 	public static ulong[] kingAttacks = new ulong[64]; // dimension is square
@@ -30,8 +32,10 @@ public static partial class g
 	public static int[] promotionPieces = new int[4] {1, 2, 3, 4};
 	public static int promotionTarget = -1;
 	public static bool isPromoting = false;
-
 	public static ulong[,] inBetween = new ulong[64, 64];
+
+	public static int perftSpeed = 0;
+	public static int perftDepth = 4;
 
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{
@@ -106,6 +110,19 @@ public static partial class g
 
 	public static int CanFlip(int n) {
 		return isBoardFlipped ? 7-n : n;
+	}
+
+	public static string MoveToString(int pieceN, int[] move)
+	{
+		char piece = piecesArray[pieceN];
+		string start = fileArray[move[0] % 8] + Convert.ToString(move[0] / 8 + 1);
+		string end = fileArray[move[1] % 8] + Convert.ToString(move[1] / 8 + 1);
+		return piece + start + "-" + end;
+	}
+
+	public static bool IsPromotion(int colorN, int pieceN, int index)
+	{
+		return pieceN == 5 && (index / 8) == promotionRank[colorN];
 	}
 
 	public static bool WrapCheck(int from, int add) {

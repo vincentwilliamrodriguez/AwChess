@@ -30,6 +30,34 @@ public struct Board
 	public int gameOutcome = -1; // -1 = ongoing, 0 = white won, 1 = black won, 2 = draw
 
 	public Board() {}
+
+	public Board Clone()
+	{
+		Board clone = new Board();
+		clone.pieces = pieces;
+		clone.piecesSer = piecesSer;
+		clone.piecesCount = piecesCount;
+		clone.occupancyByColor = occupancyByColor;
+		clone.occupancy = occupancy;
+
+		clone.sideToMove = sideToMove;
+		clone.castlingRights = castlingRights.Clone() as bool[,];
+		clone.enPassantSquare = enPassantSquare;
+		clone.halfMoveClock = halfMoveClock;
+		clone.fullMoveCounter = fullMoveCounter;
+		clone.isInCheck = isInCheck;
+		clone.checkingPieces = checkingPieces;
+		clone.pinnedPieces = pinnedPieces;
+		clone.pinnedMobility = pinnedMobility;
+		clone.kingPos = kingPos;
+
+		clone.possibleMoves = possibleMoves;
+		clone.lastMove = lastMove;
+		clone.capturedPieceN = capturedPieceN;
+		clone.gameOutcome = gameOutcome;
+
+		return clone;
+	}
 }
 
 public partial class Chess
@@ -61,7 +89,7 @@ public partial class Chess
 				}
 
 				int colorN = Char.IsLower(c) ? 1 : 0;
-				int pieceN = Array.IndexOf(new char[] {'k', 'q', 'b', 'n', 'r', 'p'}, Char.ToLower(c)); // converts char to int based on piece
+				int pieceN = Array.IndexOf(g.piecesArray, Char.ToLower(c)); // converts char to int based on piece
 				
 				b.pieces[colorN, pieceN] |= 1UL << i;
 				i++;
@@ -85,7 +113,7 @@ public partial class Chess
 
 		/* En passant target square */
 		if (fields[3] != "-") {
-			int file = Array.IndexOf(new char[] {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'}, fields[3][0]);
+			int file = Array.IndexOf(g.fileArray, fields[3][0]);
 			int rank = fields[3][1] - '1'; // subtracting 1 because rank counting starts from 0
 			b.enPassantSquare = g.ToIndex(file, rank);
 		}
@@ -210,7 +238,7 @@ public partial class Chess
 		b.pieces[b.sideToMove, startPieceN] |= 1UL << endIndex;
 
 		/* Enforcing Promotion */
-		if (startPieceN == 5 && (endIndex / 8) == g.promotionRank[b.sideToMove])
+		if (g.IsPromotion(b.sideToMove, startPieceN, endIndex))
 		{
 			b.pieces[b.sideToMove, 5] &= ~(1UL << endIndex);
 			b.pieces[b.sideToMove, promotionPiece] |= 1UL << endIndex;
@@ -305,22 +333,21 @@ public partial class Chess
 		// GD.Print(String.Format("Castling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", b.sideToMove, b.enPassantSquare, b.halfMoveClock, b.fullMoveCounter, b.castlingRights[0, 0]));
 	}
 
-	public void UnmakeMove(int startIndex, int endIndex, Board bPrev)
+	public void UnmakeMove(int startIndex, int endIndex, int startPieceN, int promotionPiece, ref Board bPrev, ref PerftCount count)
 	{
-		int endPieceN = FindPieceN(endIndex);
-
 		/* Reversing Side To Move */
 		b.sideToMove = 1 - b.sideToMove;
 
 		/* Reversing En Passant */
-		if (endIndex == bPrev.enPassantSquare && endPieceN == 5)
+		if (endIndex == bPrev.enPassantSquare && startPieceN == 5)
 		{
 			int targetOfEnPassant = endIndex + g.SinglePush(1 - b.sideToMove);
 			b.pieces[1 - b.sideToMove, 5] |= 1UL << targetOfEnPassant;
+			count.enPassants++;
 		}
 
 		/* Reversing Castling */
-		if (endPieceN == 0 && (startIndex % 8) == 4)
+		if (startPieceN == 0 && (startIndex % 8) == 4)
 		{
 			for (int sideN = 0; sideN < 2; sideN++)
 			{
@@ -328,18 +355,30 @@ public partial class Chess
 				{
 					b.pieces[b.sideToMove, 4] |= 1UL << g.castlingRookPosFrom[b.sideToMove, sideN];
 					b.pieces[b.sideToMove, 4] &= ~(1UL << g.castlingRookPosTo[b.sideToMove, sideN]);
+					count.castles++;
 				}
 			}
 		}
 
+		/* Reversing Promotion */
+		if (g.IsPromotion(b.sideToMove, startPieceN, endIndex))
+		{
+			b.pieces[b.sideToMove, promotionPiece] &= ~(1UL << endIndex);
+			b.pieces[b.sideToMove, 5] |= 1UL << endIndex;
+			count.promotions++;
+		}
+
 		/* Reversing Move */
-		b.pieces[b.sideToMove, endPieceN] &= ~(1UL << endIndex);
-		b.pieces[b.sideToMove, endPieceN] |= 1UL << startIndex;
+		b.pieces[b.sideToMove, startPieceN] &= ~(1UL << endIndex);
+		b.pieces[b.sideToMove, startPieceN] |= 1UL << startIndex;
 
 		if (b.capturedPieceN != -1)
 		{
 			b.pieces[1 - b.sideToMove, b.capturedPieceN] |= 1UL << endIndex;
 		}
+
+		/* Reversing Other Variables */
+		b = bPrev.Clone();
 	}
 
 	public void GeneratePossibleMoves(){
@@ -413,6 +452,7 @@ public partial class Chess
 					if (!b.isInCheck && hasCastlingRight && isPathClear)
 					{
 						bool isPathSafe = true;
+						path &= ~(0x200000000000002UL); // fixing long castling bug by excluding b1 and b8
 						
 						foreach (int square in g.Serialize(path))
 						{
@@ -515,6 +555,17 @@ public partial class Chess
 			if (g.Serialize(b.checkingPieces).Count == 1)
 			{
 				ulong capturingMoves = legalMoves & b.checkingPieces;
+				
+				if (pieceN == 5 && 										// if pawn
+					(legalMoves >> b.enPassantSquare & 1UL) == 1)		// and en passant is pseudolegal
+				{
+					int enPassantTarget = b.enPassantSquare + g.SinglePush(1 - b.sideToMove);
+
+					if ((b.checkingPieces >> enPassantTarget & 1UL) == 1) // if enPassantTarget is a checking piece
+					{
+						capturingMoves |= 1UL << b.enPassantSquare; // include en passant target in capturing moves
+					}
+				}
 
 				int checkingPieceIndex = g.BitScan(b.checkingPieces);
 				ulong checkingPath = g.inBetween[b.kingPos, checkingPieceIndex];

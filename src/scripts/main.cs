@@ -23,13 +23,14 @@ public partial class main : Node2D
 		
 		g.Init();
 		// cur.ImportFromFEN(g.startingPosition);
-		cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+		cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 3 2");
 		
 
 		InitBoard();
 		UpdatePieces();	
 
-		Action perft = () => {GetPerft(2);};
+
+		Action perft = () => {GetPerft(g.perftDepth);};
 		AwChess = new GodotThread();
 		AwChess.Start(Callable.From(perft));
 	}
@@ -38,7 +39,7 @@ public partial class main : Node2D
 		UpdatePieces();
 		HighlightPossibleMoves();
 		// if (cur.pinnedPieces != 0UL)
-			// HighlightBitboard(ulong.MaxValue);
+			// HighlightBitboard(0xE00000000000000UL & ~(0x200000000000002UL));
 		// n++;
 		if (cur.b.gameOutcome == -1 && !g.isPlayer[cur.b.sideToMove])
 		{
@@ -57,76 +58,84 @@ public partial class main : Node2D
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
-		if (@event is InputEventMouseButton mouseEvent && Input.IsActionJustReleased("click"))
+		if (@event is InputEventMouseButton mouseEvent)
 		{
-			Vector2I coor = board_pieces_node.LocalToMap(mouseEvent.Position);
-
-			if (g.isPromoting && g.isPlayer[cur.b.sideToMove] && cur.b.gameOutcome == -1)
+			if (Input.IsActionJustReleased("click"))
 			{
-				// end choosing promotion piece
-				Vector2I promotionAtlas = board_pieces_node.GetCellAtlasCoords(4, coor);
-				int promotionPiece = promotionAtlas.X;
+				g.perftSpeed = 0;
+				Vector2I coor = board_pieces_node.LocalToMap(mouseEvent.Position);
 
-				if (promotionPiece != -1) // if player didn't click on non-promotion pieces squares
+				if (g.isPromoting && g.isPlayer[cur.b.sideToMove] && cur.b.gameOutcome == -1)
 				{
-					cur.MakeMove(g.selectedPiece, g.promotionTarget, promotionPiece);
-					UpdatePieces();
-				}
-				
-				g.promotionTarget = -1;
-				g.isPromoting = false;
+					// end choosing promotion piece
+					Vector2I promotionAtlas = board_pieces_node.GetCellAtlasCoords(4, coor);
+					int promotionPiece = promotionAtlas.X;
 
-				UpdatePromotionDisplay();
+					if (promotionPiece != -1) // if player didn't click on non-promotion pieces squares
+					{
+						cur.MakeMove(g.selectedPiece, g.promotionTarget, promotionPiece);
+						UpdatePieces();
+					}
+					
+					g.promotionTarget = -1;
+					g.isPromoting = false;
+
+					UpdatePromotionDisplay();
+				}
+				else if (g.IsWithinBoard(coor.X, coor.Y) && g.isPlayer[cur.b.sideToMove] && cur.b.gameOutcome == -1)
+				{
+					/* HUMAN */
+					coor.X = g.CanFlip(coor.X);
+					coor.Y = g.CanFlip(coor.Y);
+					coor.Y = 7 - coor.Y;
+
+					int targetIndex = g.ToIndex(coor.X, coor.Y);
+					bool isTargetOccupied = Convert.ToBoolean(
+											cur.b.occupancyByColor[cur.b.sideToMove] >> targetIndex
+											& 1UL); // checking if target square has a same color piece
+
+					if (!g.isMovingPiece && isTargetOccupied)
+					{
+						g.selectedPiece = targetIndex;
+						g.selectedPieceN = cur.FindPieceN(g.selectedPiece);
+						ulong PieceMoves = cur.b.possibleMoves[g.selectedPieceN][g.selectedPiece];
+
+						if (PieceMoves != 0UL)
+						{
+							g.curHighlightedMoves = cur.b.possibleMoves[g.selectedPieceN][g.selectedPiece];
+							g.isMovingPiece = true;
+						}
+					}
+
+					else if (g.isMovingPiece)
+					{
+						ulong pieceMoves = cur.b.possibleMoves[g.selectedPieceN][g.selectedPiece];
+						if ((pieceMoves >> targetIndex & 1UL) == 1) // Checks if move is part of generated moves
+						{
+							g.isPromoting = g.selectedPieceN == 5 && // is a pawn
+											(targetIndex / 8) == g.promotionRank[cur.b.sideToMove]; // target is promotion rank
+							
+							if (!g.isPromoting)
+							{
+								cur.MakeMove(g.selectedPiece, targetIndex);
+								UpdatePieces();
+							}
+							else
+							{
+								// start choosing promotion piece
+								g.promotionTarget = targetIndex;
+								UpdatePromotionDisplay();
+							}
+						}
+
+						g.isMovingPiece = false;
+						g.curHighlightedMoves = 0UL;
+					}
+				}
 			}
-			else if (g.IsWithinBoard(coor.X, coor.Y) && g.isPlayer[cur.b.sideToMove] && cur.b.gameOutcome == -1)
+			else if (Input.IsActionJustPressed("click"))
 			{
-				/* HUMAN */
-				coor.X = g.CanFlip(coor.X);
-				coor.Y = g.CanFlip(coor.Y);
-				coor.Y = 7 - coor.Y;
-
-				int targetIndex = g.ToIndex(coor.X, coor.Y);
-				bool isTargetOccupied = Convert.ToBoolean(
-										cur.b.occupancyByColor[cur.b.sideToMove] >> targetIndex
-										& 1UL); // checking if target square has a same color piece
-
-				if (!g.isMovingPiece && isTargetOccupied)
-				{
-					g.selectedPiece = targetIndex;
-					g.selectedPieceN = cur.FindPieceN(g.selectedPiece);
-					ulong PieceMoves = cur.b.possibleMoves[g.selectedPieceN][g.selectedPiece];
-
-					if (PieceMoves != 0UL)
-					{
-						g.curHighlightedMoves = cur.b.possibleMoves[g.selectedPieceN][g.selectedPiece];
-						g.isMovingPiece = true;
-					}
-				}
-
-				else if (g.isMovingPiece)
-				{
-					ulong pieceMoves = cur.b.possibleMoves[g.selectedPieceN][g.selectedPiece];
-					if ((pieceMoves >> targetIndex & 1UL) == 1) // Checks if move is part of generated moves
-					{
-						g.isPromoting = g.selectedPieceN == 5 && // is a pawn
-										(targetIndex / 8) == g.promotionRank[cur.b.sideToMove]; // target is promotion rank
-						
-						if (!g.isPromoting)
-						{
-							cur.MakeMove(g.selectedPiece, targetIndex);
-							UpdatePieces();
-						}
-						else
-						{
-							// start choosing promotion piece
-							g.promotionTarget = targetIndex;
-							UpdatePromotionDisplay();
-						}
-					}
-
-					g.isMovingPiece = false;
-					g.curHighlightedMoves = 0UL;
-				}
+				g.perftSpeed = 50;
 			}
 		}
 	}
@@ -265,35 +274,76 @@ public partial class main : Node2D
 
 	public void GetPerft(int depth)
 	{
-		GD.Print("Total number of positions: ", Perft(depth));
+		System.Threading.Thread.Sleep(2000);
+		var watch = System.Diagnostics.Stopwatch.StartNew();
+
+		GD.Print("Total number of positions: ", Perft(depth).nodes);
+
+		watch.Stop();
+		GD.Print(watch.ElapsedMilliseconds / 1000.0, " seconds");
+
+		cur.Update();
 	}
 
-	public int Perft(int depth)
+	public PerftCount Perft(int depth)
 	{
+		PerftCount count = new PerftCount();
+
 		if (depth == 0)
 		{
-			return 1;
+			count.nodes = 1;
+			return count;
 		}
 
-		int nodes = 0;
-		Board curB = cur.b;
+		Board curB = cur.b.Clone();
+	
 		List<int[]> flattenedMoves = cur.flattenPossibleMoves();
 		// GD.Print("Depth ", depth, "  ", flattenedMoves.Count);
 
 		foreach (int[] move in flattenedMoves)
 		{
+			int pieceN = cur.FindPieceN(move[0]);
+			int[] promotionPieces = g.IsPromotion(curB.sideToMove, pieceN, move[1]) ?
+									g.promotionPieces : // if move is promoting
+									new int[] {-1}; // if move is not promoting
 
-			cur.MakeMove(move[0], move[1], 1);
-			System.Threading.Thread.Sleep(5);
+			foreach (int promotionPiece in promotionPieces)
+			{
+				cur.MakeMove(move[0], move[1], promotionPiece);
+				System.Threading.Thread.Sleep(g.perftSpeed);
 
-			nodes += Perft(depth - 1);
+				PerftCount childCount = Perft(depth - 1);
+				count.Add(childCount);
 
-			cur.UnmakeMove(move[0], move[1], curB);
-			cur.b = curB;
-			System.Threading.Thread.Sleep(5);
+				cur.UnmakeMove(move[0], move[1], pieceN, promotionPiece, ref curB, ref count);
+				System.Threading.Thread.Sleep(g.perftSpeed);
+
+				if (depth == g.perftDepth)
+				{
+					int movingPieceN = cur.FindPieceN(move[0]);
+					GD.Print(g.MoveToString(movingPieceN, move), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
+				}
+			}
 		}
 
-		return nodes;
+		return count;
+	}
+}
+
+public struct PerftCount
+{
+	public int nodes = 0;
+	public int castles = 0;
+	public int enPassants = 0;
+	public int promotions = 0;
+
+	public PerftCount() {}
+	public void Add(PerftCount inp)
+	{
+		nodes += inp.nodes;
+		castles += inp.castles;
+		enPassants += inp.enPassants;
+		promotions += inp.promotions;
 	}
 }
 
