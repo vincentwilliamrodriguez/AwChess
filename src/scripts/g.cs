@@ -14,6 +14,7 @@ public static partial class g
 	public static ulong curHighlightedMoves = 0UL;
 	public static string startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 	public static char[] piecesArray = new char[] {'k', 'q', 'b', 'n', 'r', 'p'};
+	public static char[] piecesMoveArray = new char[] {'K', 'Q', 'B', 'N', 'R', ' '};
 	public static char[] fileArray = new char[] {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 
 	public static ulong[,] rayAttacks = new ulong[64,8]; // dimensions are square and direction (starting from NW clockwise)
@@ -27,6 +28,7 @@ public static partial class g
 	public static int[,] castlingKingPos = new int[2, 2] {{2, 6}, {58, 62}};
 	public static int[,] castlingRookPosFrom = new int[2, 2] {{0, 7}, {56, 63}};
 	public static int[,] castlingRookPosTo = new int[2, 2] {{3, 5}, {59, 61}};
+	public static int[,] rookPos = new int[2, 2] {{0, 7}, {56, 63}};
 
 	public static int[] promotionRank = new int[2] {7, 0};
 	public static int[] promotionPieces = new int[4] {1, 2, 3, 4};
@@ -36,6 +38,7 @@ public static partial class g
 
 	public static int perftSpeed = 0;
 	public static int perftDepth = 4;
+	public static ulong testHighlight = 0UL;
 
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{
@@ -112,12 +115,26 @@ public static partial class g
 		return isBoardFlipped ? 7-n : n;
 	}
 
-	public static string MoveToString(int pieceN, int[] move)
+	public static string MoveToString(int pieceN, int[] move, bool isCapture)
 	{
-		char piece = piecesArray[pieceN];
+		char piece = piecesMoveArray[pieceN];
 		string start = fileArray[move[0] % 8] + Convert.ToString(move[0] / 8 + 1);
 		string end = fileArray[move[1] % 8] + Convert.ToString(move[1] / 8 + 1);
-		return piece + start + "-" + end;
+		
+		/* Castling notation */
+		if (pieceN == 0 && (move[0] % 8) == 4)
+		{
+			if ((move[1] % 8) == 2) // if king castled queenside
+				return "O-O-O";
+
+			if ((move[1] % 8) == 6) // if king castled kingside
+				return "O-O";
+		}
+
+		/* Move connector */
+		char connector = isCapture ? 'x' : '-';
+
+		return piece + start + connector + end;
 	}
 
 	public static bool IsPromotion(int colorN, int pieceN, int index)

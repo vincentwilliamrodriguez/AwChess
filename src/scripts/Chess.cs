@@ -100,17 +100,15 @@ public partial class Chess
 		b.sideToMove = Array.IndexOf(new char[] {'w', 'b'}, char.Parse(fields[1]));
 
 		/* Castling rights */
-		var castlingChar = new char[,] {{'K', 'Q'}, {'k', 'q'}};
+		var castlingChar = new char[,] {{'Q', 'K'}, {'q', 'k'}};
 
 		for (int colorN = 0; colorN < 2; colorN++) {
 			for (int sideN = 0; sideN < 2; sideN++) {
-
 				bool isCastlingAllowed = fields[2].Contains(castlingChar[colorN, sideN]); // checks if color + side is in the castling rights field
 				b.castlingRights[colorN, sideN] = isCastlingAllowed;
-
 			}
 		}
-
+		
 		/* En passant target square */
 		if (fields[3] != "-") {
 			int file = Array.IndexOf(g.fileArray, fields[3][0]);
@@ -266,24 +264,16 @@ public partial class Chess
 
 		if (startPieceN == 4 || endPieceN == 4) // if rook moved or got captured
 		{
-			if (startIndex == 0 || startIndex == 56) // if queen's rook moved
+			for (int sideN = 0; sideN < 2; sideN++)
 			{
-				b.castlingRights[b.sideToMove, 0] = false;
-			}
-			
-			if (startIndex == 7 || startIndex == 63) // if king's rook moved
-			{
-				b.castlingRights[b.sideToMove, 1] = false;
-			}
-
-			if (endIndex == 0 || endIndex == 56) // if queen's rook got captured
-			{
-				b.castlingRights[1 - b.sideToMove, 0] = false;
-			}
-			
-			if (endIndex == 7 || endIndex == 63) // if king's rook got captured
-			{
-				b.castlingRights[1 - b.sideToMove, 1] = false;
+				if (startIndex == g.rookPos[b.sideToMove, sideN]) // if own's rook moved
+				{
+					b.castlingRights[b.sideToMove, sideN] = false;
+				}
+				if (endIndex == g.rookPos[1 - b.sideToMove, sideN]) // if enemy's rook got captured
+				{
+					b.castlingRights[1 - b.sideToMove, sideN] = false;
+				}
 			}
 		}
 		
@@ -519,13 +509,11 @@ public partial class Chess
 
 				/* Detecting En Passant */
 				bool isEnPassantAllowed = (g.pawnAttacks[colorN, index] >> b.enPassantSquare & 1UL) == 1;
-				if (isEnPassantAllowed){
+				if (isEnPassantAllowed){				
 					int enPassantTarget = b.enPassantSquare + g.SinglePush(1 - b.sideToMove);
-					ulong tOccupancy = b.occupancy & ~(1UL << enPassantTarget);  // "remove" en passant target from board
+					ulong hiddenPawns = b.occupancy & ((1UL << enPassantTarget) | (1UL << index));  // "remove" en passant target and en passanter from board
+					ulong enemiesAfterEnPassant = GenerateRookAttacks(b.kingPos, hiddenPawns);
 
-					ulong enemiesAfterEnPassant = GenerateRookXRay(b.occupancyByColor[b.sideToMove],
-																   tOccupancy,
-																   b.kingPos);
 					enemiesAfterEnPassant &= b.pieces[1 - b.sideToMove, 4] |
 											 b.pieces[1 - b.sideToMove, 1];
 					enemiesAfterEnPassant &= ~b.occupancyByColor[b.sideToMove];
@@ -582,37 +570,37 @@ public partial class Chess
 		return legalMoves;
 	}
 
-	public ulong GenerateRookAttacks(int index, bool checking = false)
+	public ulong GenerateRookAttacks(int index, ulong hidden = 0UL)
 	{
 		ulong output = 0UL;
 
 		for (int dir = 1; dir < 8; dir += 2)
 		{
-			output |= GetBlockedRayAttack(index, dir, checking);
+			output |= GetBlockedRayAttack(index, dir, hidden);
 		}
 
 		return output;
 	}
 
-	public ulong GenerateBishopAttacks(int index, bool checking = false)
+	public ulong GenerateBishopAttacks(int index, ulong hidden = 0UL)
 	{
 		ulong output = 0UL;
 
 		for (int dir = 0; dir < 8; dir += 2)
 		{
-			output |= GetBlockedRayAttack(index, dir, checking);
+			output |= GetBlockedRayAttack(index, dir, hidden);
 		}
 
 		return output;
 	}
 
-	public ulong GetBlockedRayAttack(int index, int dir, bool checking = false)
+	public ulong GetBlockedRayAttack(int index, int dir, ulong hidden = 0UL)
 	{
 		ulong attacks = g.rayAttacks[index, dir];
 		ulong blockers = attacks & b.occupancy;
 
-		if (checking)
-			blockers &= ~(1UL << b.kingPos); // removing king from blockers to avoid check problems
+		if (hidden != 0UL)
+			blockers &= ~hidden; // removing king from blockers to avoid check problems
 
 		if (blockers != 0UL)
 		{
@@ -665,6 +653,8 @@ public partial class Chess
 
 	public bool IsKingInCheck(int kingIndex, int colorN)
 	{
+		ulong kingUL = 1UL << b.kingPos;
+
 		ulong enemyPawns = b.pieces[1 - colorN, 5];
 		ulong kingAsPawn = g.pawnAttacks[colorN, kingIndex];
 		if ((enemyPawns & kingAsPawn) != 0UL) {return true;}
@@ -675,12 +665,12 @@ public partial class Chess
 
 		ulong enemyRQ = b.pieces[1 - colorN, 4] | 
 						b.pieces[1 - colorN, 1];
-		ulong kingAsRook = GenerateRookAttacks(kingIndex, true);
+		ulong kingAsRook = GenerateRookAttacks(kingIndex, kingUL);
 		if ((enemyRQ & kingAsRook) != 0UL)  {return true;}
 
 		ulong enemyBQ = b.pieces[1 - colorN, 2] | 
 						b.pieces[1 - colorN, 1];
-		ulong kingAsBishop = GenerateBishopAttacks(kingIndex, true);
+		ulong kingAsBishop = GenerateBishopAttacks(kingIndex, kingUL);
 		if ((enemyBQ & kingAsBishop) != 0UL)  {return true;}
 
 		ulong enemyKing = b.pieces[1 - colorN, 0];
@@ -692,6 +682,8 @@ public partial class Chess
 	
 	public ulong GetCheckingPieces(int kingIndex, int colorN)
 	{
+		ulong kingUL = 1UL << b.kingPos;
+
 		ulong enemyPawns = b.pieces[1 - colorN, 5];
 		ulong kingAsPawn = g.pawnAttacks[colorN, kingIndex];
 
@@ -700,11 +692,11 @@ public partial class Chess
 
 		ulong enemyRQ = b.pieces[1 - colorN, 4] | 
 						b.pieces[1 - colorN, 1];
-		ulong kingAsRook = GenerateRookAttacks(kingIndex, true);
+		ulong kingAsRook = GenerateRookAttacks(kingIndex, kingUL);
 
 		ulong enemyBQ = b.pieces[1 - colorN, 2] | 
 						b.pieces[1 - colorN, 1];
-		ulong kingAsBishop = GenerateBishopAttacks(kingIndex, true);
+		ulong kingAsBishop = GenerateBishopAttacks(kingIndex, kingUL);
 
 		return (enemyPawns & kingAsPawn) |
 			   (enemyKnights & kingAsKnight) |
@@ -717,7 +709,7 @@ public partial class Chess
 		ulong pinned = 0UL;
 		ulong pinners = GenerateRookXRay(b.occupancyByColor[b.sideToMove], // own pieces as nearest blocker
 										 b.occupancy, // all pieces as second nearest blocker
-										 b.kingPos);
+										 b.kingPos); // king position
 		pinners &= b.pieces[1 - b.sideToMove, 4] | // get opponent's rooks
 				   b.pieces[1 - b.sideToMove, 1];  // get opponent's queens
 		pinners &= ~b.occupancyByColor[b.sideToMove];

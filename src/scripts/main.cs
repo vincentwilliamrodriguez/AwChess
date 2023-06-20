@@ -22,8 +22,8 @@ public partial class main : Node2D
 		cur = new Chess();
 		
 		g.Init();
-		// cur.ImportFromFEN(g.startingPosition);
-		cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 3 2");
+		cur.ImportFromFEN(g.startingPosition);
+		// cur.ImportFromFEN("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
 		
 
 		InitBoard();
@@ -39,7 +39,7 @@ public partial class main : Node2D
 		UpdatePieces();
 		HighlightPossibleMoves();
 		// if (cur.pinnedPieces != 0UL)
-			// HighlightBitboard(0xE00000000000000UL & ~(0x200000000000002UL));
+			HighlightBitboard(g.testHighlight);
 		// n++;
 		if (cur.b.gameOutcome == -1 && !g.isPlayer[cur.b.sideToMove])
 		{
@@ -273,7 +273,7 @@ public partial class main : Node2D
 	}
 
 	public void GetPerft(int depth)
-	{
+	{		
 		System.Threading.Thread.Sleep(2000);
 		var watch = System.Diagnostics.Stopwatch.StartNew();
 
@@ -314,6 +314,7 @@ public partial class main : Node2D
 
 				PerftCount childCount = Perft(depth - 1);
 				count.Add(childCount);
+				bool isCapture = cur.b.capturedPieceN != -1; // only for debugging
 
 				cur.UnmakeMove(move[0], move[1], pieceN, promotionPiece, ref curB, ref count);
 				System.Threading.Thread.Sleep(g.perftSpeed);
@@ -321,7 +322,7 @@ public partial class main : Node2D
 				if (depth == g.perftDepth)
 				{
 					int movingPieceN = cur.FindPieceN(move[0]);
-					GD.Print(g.MoveToString(movingPieceN, move), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
+					GD.Print(g.MoveToString(movingPieceN, move, isCapture), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
 				}
 			}
 		}
