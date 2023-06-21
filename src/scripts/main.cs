@@ -5,23 +5,23 @@ using System.Linq;
 
 public partial class main : Node2D
 {
-	public Script Chess;
 	public Chess cur;
+	public AwChess[] AwChessBot = new AwChess[2];
+	public GodotThread[] AwChessThread = new GodotThread[2];
+
 	public TileMap board_pieces_node;
 	public ColorRect turnIndicator;
 	public Sprite2D promotionBackground;
-	public GodotThread AwChess;
-	// public int n = 0;
 	
 	public override void _Ready()
 	{
 		board_pieces_node = (TileMap) GetNode("Board_Pieces");
 		turnIndicator = (ColorRect) GetNode("TurnIndicator");
 		promotionBackground = (Sprite2D) GetNode("PromotionBackground");
-		Chess = (Script) GD.Load("res://src/scripts/Chess.cs");
-		cur = new Chess();
 		
 		g.Init();
+
+		cur = new Chess();
 		cur.ImportFromFEN(g.startingPosition);
 		// cur.ImportFromFEN("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
 		
@@ -29,31 +29,47 @@ public partial class main : Node2D
 		InitBoard();
 		UpdatePieces();	
 
+		/* AwChess Bot Generation */
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			int tempColorN = colorN;
+			Action joinThreadAct = () => {JoinThread(tempColorN);}; // NOTE: tempColorN prevents thread bug regarding variable as parameter
 
-		Action perft = () => {GetPerft(g.perftDepth);};
-		AwChess = new GodotThread();
-		AwChess.Start(Callable.From(perft));
+			AwChessBot[colorN] = new AwChess(colorN, ref cur, Callable.From(joinThreadAct));
+			AwChessThread[colorN] = new GodotThread();
+
+			if (!g.isPlayer[colorN])
+			{
+				// ActivateAwChessPerft(colorN);
+			}
+		}
 	}
 
 	public override void _Process(double delta) {
 		UpdatePieces();
 		HighlightPossibleMoves();
-		// if (cur.pinnedPieces != 0UL)
-			HighlightBitboard(g.testHighlight);
-		// n++;
-		if (cur.b.gameOutcome == -1 && !g.isPlayer[cur.b.sideToMove])
+		// Random random = new Random();
+		// HighlightBitboard(random.Next(2) == 0 ? ulong.MaxValue : ulong.MinValue);
+
+		int turn = cur.b.sideToMove;
+
+		if (!g.isPlayer[turn] && cur.b.gameOutcome == -1)
 		{
+			/* Not Thinking */
+			if (!AwChessThread[turn].IsAlive())
+			{
+				Action botMove = () => {AwChessBot[turn].RandomMove();};
+				AwChessBot[turn].UpdateCopy();
+				AwChessThread[turn].Start(Callable.From(botMove));
+			}
+
+			/* Thinking */
+			else
+			{
+
+			}
 			// System.Threading.Thread.Sleep(500);
-
-			var watch = System.Diagnostics.Stopwatch.StartNew();
-
-			RunAwChess();
-
-			watch.Stop();
-			// GD.Print(watch.ElapsedMilliseconds);
 		}
-		
-
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -248,97 +264,17 @@ public partial class main : Node2D
 			board_pieces_node.ClearLayer(4);
 			promotionBackground.Hide();
 		}
-		
-		
 	}
 
-
-
-	/* AWCHESS CHESS ENGINE */
-
-	public void RunAwChess()
+	public void ActivateAwChessPerft(int color)
 	{
-		/* AWCHESS */
-		List<Move> flattenedMoves = cur.b.possibleMoves;
-
-		Random random = new Random();
-		int randomMove = random.Next(flattenedMoves.Count);
-		int randomPiece = flattenedMoves[randomMove].pieceN;
-		int randomStart = flattenedMoves[randomMove].start;
-		int randomEnd = flattenedMoves[randomMove].end;
-		int randomPromotion = g.promotionPieces[random.Next(4)];
-
-		cur.MakeMove(new Move(randomPiece, randomStart, randomEnd, randomPromotion));
-		UpdatePieces();
-		HighlightPossibleMoves();
+		Action perft = () => {AwChessBot[color].GetPerft(g.perftDepth);};
+		AwChessThread[color].Start(Callable.From(perft));
 	}
 
-	public void GetPerft(int depth)
-	{		
-		System.Threading.Thread.Sleep(2000);
-		var watch = System.Diagnostics.Stopwatch.StartNew();
-
-		GD.Print("Total number of positions: ", Perft(depth).nodes);
-
-		watch.Stop();
-		GD.Print(watch.ElapsedMilliseconds / 1000.0, " seconds");
-
-		cur.Update();
-	}
-
-	public PerftCount Perft(int depth)
+	public void JoinThread(int color)
 	{
-		PerftCount count = new PerftCount();
-
-		if (depth == 0)
-		{
-			count.nodes = 1;
-			return count;
-		}
-
-		Board curB = cur.b.Clone();
-	
-		List<Move> flattenedMoves = cur.b.possibleMoves;
-		// GD.Print("Depth ", depth, "  ", flattenedMoves.Count);
-
-		foreach (Move move in flattenedMoves)
-		{
-			int pieceN = move.pieceN;
-
-			cur.MakeMove(move);
-			System.Threading.Thread.Sleep(g.perftSpeed);
-
-			PerftCount childCount = Perft(depth - 1);
-			count.Add(childCount);
-			bool isCapture = cur.b.capturedPieceN != -1; // only for debugging
-
-			cur.UnmakeMove(move, ref curB, ref count);
-			System.Threading.Thread.Sleep(g.perftSpeed);
-
-			if (depth == g.perftDepth)
-			{
-				GD.Print(g.MoveToString(move, isCapture), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
-			}
-		}
-
-		return count;
-	}
-}
-
-public struct PerftCount
-{
-	public int nodes = 0;
-	public int castles = 0;
-	public int enPassants = 0;
-	public int promotions = 0;
-
-	public PerftCount() {}
-	public void Add(PerftCount inp)
-	{
-		nodes += inp.nodes;
-		castles += inp.castles;
-		enPassants += inp.enPassants;
-		promotions += inp.promotions;
+		AwChessThread[color].WaitToFinish();
 	}
 }
 

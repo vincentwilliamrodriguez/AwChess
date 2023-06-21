@@ -6,7 +6,7 @@ using System.Linq;
 
 public static partial class g
 {
-	public static bool[] isPlayer = new bool[] {true, true};
+	public static bool[] isPlayer = new bool[] {false, false};
 	public static bool isBoardFlipped = isPlayer[1] && !isPlayer[0]; // only flip when black is player but not both
 	public static bool isMovingPiece = false;
 	public static int selectedPiece = -1; // [piece, index]
