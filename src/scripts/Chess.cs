@@ -24,7 +24,8 @@ public struct Board
 	public Dictionary<int, ulong> pinnedMobility = new Dictionary<int, ulong> {};
 	public int kingPos = -1;
 
-	public Dictionary<int, ulong>[] possibleMoves = new Dictionary<int, ulong>[6]; // only includes sideToMove
+	public Dictionary<int, ulong>[] possibleMovesBB = new Dictionary<int, ulong>[6]; // only includes sideToMove
+	public List<Move> possibleMoves = new List<Move> {};
 	public int[] lastMove = new int[] {-1, -1};
 	public int capturedPieceN = -1;
 	public int gameOutcome = -1; // -1 = ongoing, 0 = white won, 1 = black won, 2 = draw
@@ -51,12 +52,28 @@ public struct Board
 		clone.pinnedMobility = pinnedMobility;
 		clone.kingPos = kingPos;
 
-		clone.possibleMoves = possibleMoves;
+		clone.possibleMovesBB = possibleMovesBB;
 		clone.lastMove = lastMove;
 		clone.capturedPieceN = capturedPieceN;
 		clone.gameOutcome = gameOutcome;
 
 		return clone;
+	}
+}
+
+public struct Move
+{
+	public int pieceN = -1;
+	public int start = -1;
+	public int end = -1;
+	public int promotionPiece = -1;
+
+	public Move(int pieceN, int start, int end, int promotionPiece)
+	{
+		this.pieceN = pieceN;
+		this.start = start;
+		this.end = end;
+		this.promotionPiece = promotionPiece;
 	}
 }
 
@@ -131,6 +148,7 @@ public partial class Chess
 		UpdateOccupancy();
 		UpdateSerialized();
 		GeneratePossibleMoves();
+		flattenPossibleMoves();
 		CheckGameOutcome();
 	}
 
@@ -162,7 +180,7 @@ public partial class Chess
 
 	public void CheckGameOutcome()
 	{
-		if (flattenPossibleMoves().Count > 0)
+		if (b.possibleMoves.Count > 0)
 		{
 
 			bool insufficientMaterial = b.piecesCount.Cast<int>().Sum() == 2;
@@ -218,7 +236,11 @@ public partial class Chess
 		return -1;
 	}
 
-	public void MakeMove(int startIndex, int endIndex, int promotionPiece = -1) {
+	public void MakeMove(Move move) {
+		int startIndex = move.start;
+		int endIndex = move.end;
+		int promotionPiece = move.promotionPiece;
+
 		/* Updating Pieces */
 		int endPieceN = -1;
 		b.capturedPieceN = -1;
@@ -231,7 +253,7 @@ public partial class Chess
 			b.pieces[1 - b.sideToMove, endPieceN] &= ~(1UL << endIndex);
 		}
 
-		int startPieceN = FindPieceN(startIndex);
+		int startPieceN = move.pieceN;
 		b.pieces[b.sideToMove, startPieceN] &= ~(1UL << startIndex);
 		b.pieces[b.sideToMove, startPieceN] |= 1UL << endIndex;
 
@@ -323,8 +345,13 @@ public partial class Chess
 		// GD.Print(String.Format("Castling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", b.sideToMove, b.enPassantSquare, b.halfMoveClock, b.fullMoveCounter, b.castlingRights[0, 0]));
 	}
 
-	public void UnmakeMove(int startIndex, int endIndex, int startPieceN, int promotionPiece, ref Board bPrev, ref PerftCount count)
+	public void UnmakeMove(Move move, ref Board bPrev, ref PerftCount count)
 	{
+		int startPieceN = move.pieceN;
+		int startIndex = move.start;
+		int endIndex = move.end;
+		int promotionPiece = move.promotionPiece;
+
 		/* Reversing Side To Move */
 		b.sideToMove = 1 - b.sideToMove;
 
@@ -385,12 +412,12 @@ public partial class Chess
 
 		for (int pieceN = 0; pieceN < 6; pieceN++)
 		{
-			b.possibleMoves[pieceN] = new Dictionary<int, ulong> {};
+			b.possibleMovesBB[pieceN] = new Dictionary<int, ulong> {};
 
 			foreach (int pieceIndex in b.piecesSer[b.sideToMove, pieceN])
 			{
 				ulong pieceMoves = GenerateMovesByIndex(pieceN, pieceIndex, b.sideToMove);
-				b.possibleMoves[pieceN].Add(pieceIndex, pieceMoves);
+				b.possibleMovesBB[pieceN].Add(pieceIndex, pieceMoves);
 			}
 
 			// /* Enemy Attacks Bitboard */
@@ -402,22 +429,28 @@ public partial class Chess
 		}
 	}
 
-	public List<int[]> flattenPossibleMoves()
+	public void flattenPossibleMoves()
 	{
-		List<int[]> flattenedMoves = new List<int[]> {};
+		b.possibleMoves = new List<Move> {};
 
-		foreach (var pieceType in b.possibleMoves)
+		for (int pieceN = 0; pieceN < 6; pieceN++)
 		{
+			Dictionary<int, ulong> pieceType = b.possibleMovesBB[pieceN];
 			foreach (var piece in pieceType.Keys.ToList())
 			{
-				foreach (var move in g.Serialize(pieceType[piece]))
+				foreach (var endIndex in g.Serialize(pieceType[piece]))
 				{
-					flattenedMoves.Add(new int[2] {piece, move});
+					int[] promotionPieces = g.IsPromotion(b.sideToMove, pieceN, endIndex) ?
+									g.promotionPieces : // if move is promoting
+									new int[] {-1}; // if move is not promoting
+
+					foreach (int promotionPiece in promotionPieces)
+					{
+						b.possibleMoves.Add(new Move(pieceN, piece, endIndex, promotionPiece));
+					}
 				}
 			}
 		}
-
-		return flattenedMoves;
 	}
 
 	public ulong GenerateMovesByIndex(int pieceN, int index, int colorN){

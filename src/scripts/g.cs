@@ -115,19 +115,19 @@ public static partial class g
 		return isBoardFlipped ? 7-n : n;
 	}
 
-	public static string MoveToString(int pieceN, int[] move, bool isCapture)
+	public static string MoveToString(Move move, bool isCapture)
 	{
-		char piece = piecesMoveArray[pieceN];
-		string start = fileArray[move[0] % 8] + Convert.ToString(move[0] / 8 + 1);
-		string end = fileArray[move[1] % 8] + Convert.ToString(move[1] / 8 + 1);
+		char piece = piecesMoveArray[move.pieceN];
+		string start = fileArray[move.start % 8] + Convert.ToString(move.start / 8 + 1);
+		string end = fileArray[move.end % 8] + Convert.ToString(move.end / 8 + 1);
 		
 		/* Castling notation */
-		if (pieceN == 0 && (move[0] % 8) == 4)
+		if (move.pieceN == 0 && (move.start % 8) == 4)
 		{
-			if ((move[1] % 8) == 2) // if king castled queenside
+			if ((move.end % 8) == 2) // if king castled queenside
 				return "O-O-O";
 
-			if ((move[1] % 8) == 6) // if king castled kingside
+			if ((move.end % 8) == 6) // if king castled kingside
 				return "O-O";
 		}
 

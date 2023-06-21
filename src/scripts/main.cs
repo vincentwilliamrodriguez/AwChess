@@ -73,7 +73,7 @@ public partial class main : Node2D
 
 					if (promotionPiece != -1) // if player didn't click on non-promotion pieces squares
 					{
-						cur.MakeMove(g.selectedPiece, g.promotionTarget, promotionPiece);
+						cur.MakeMove(new Move(g.selectedPieceN, g.selectedPiece, g.promotionTarget, promotionPiece));
 						UpdatePieces();
 					}
 					
@@ -98,18 +98,18 @@ public partial class main : Node2D
 					{
 						g.selectedPiece = targetIndex;
 						g.selectedPieceN = cur.FindPieceN(g.selectedPiece);
-						ulong PieceMoves = cur.b.possibleMoves[g.selectedPieceN][g.selectedPiece];
+						ulong PieceMoves = cur.b.possibleMovesBB[g.selectedPieceN][g.selectedPiece];
 
 						if (PieceMoves != 0UL)
 						{
-							g.curHighlightedMoves = cur.b.possibleMoves[g.selectedPieceN][g.selectedPiece];
+							g.curHighlightedMoves = cur.b.possibleMovesBB[g.selectedPieceN][g.selectedPiece];
 							g.isMovingPiece = true;
 						}
 					}
 
 					else if (g.isMovingPiece)
 					{
-						ulong pieceMoves = cur.b.possibleMoves[g.selectedPieceN][g.selectedPiece];
+						ulong pieceMoves = cur.b.possibleMovesBB[g.selectedPieceN][g.selectedPiece];
 						if ((pieceMoves >> targetIndex & 1UL) == 1) // Checks if move is part of generated moves
 						{
 							g.isPromoting = g.selectedPieceN == 5 && // is a pawn
@@ -117,7 +117,7 @@ public partial class main : Node2D
 							
 							if (!g.isPromoting)
 							{
-								cur.MakeMove(g.selectedPiece, targetIndex);
+								cur.MakeMove(new Move(g.selectedPieceN, g.selectedPiece, targetIndex, -1));
 								UpdatePieces();
 							}
 							else
@@ -259,15 +259,16 @@ public partial class main : Node2D
 	public void RunAwChess()
 	{
 		/* AWCHESS */
-		List<int[]> flattenedMoves = cur.flattenPossibleMoves();
+		List<Move> flattenedMoves = cur.b.possibleMoves;
 
 		Random random = new Random();
 		int randomMove = random.Next(flattenedMoves.Count);
-		int randomStart = flattenedMoves[randomMove][0];
-		int randomEnd = flattenedMoves[randomMove][1];
+		int randomPiece = flattenedMoves[randomMove].pieceN;
+		int randomStart = flattenedMoves[randomMove].start;
+		int randomEnd = flattenedMoves[randomMove].end;
 		int randomPromotion = g.promotionPieces[random.Next(4)];
 
-		cur.MakeMove(randomStart, randomEnd, randomPromotion);
+		cur.MakeMove(new Move(randomPiece, randomStart, randomEnd, randomPromotion));
 		UpdatePieces();
 		HighlightPossibleMoves();
 	}
@@ -297,33 +298,26 @@ public partial class main : Node2D
 
 		Board curB = cur.b.Clone();
 	
-		List<int[]> flattenedMoves = cur.flattenPossibleMoves();
+		List<Move> flattenedMoves = cur.b.possibleMoves;
 		// GD.Print("Depth ", depth, "  ", flattenedMoves.Count);
 
-		foreach (int[] move in flattenedMoves)
+		foreach (Move move in flattenedMoves)
 		{
-			int pieceN = cur.FindPieceN(move[0]);
-			int[] promotionPieces = g.IsPromotion(curB.sideToMove, pieceN, move[1]) ?
-									g.promotionPieces : // if move is promoting
-									new int[] {-1}; // if move is not promoting
+			int pieceN = move.pieceN;
 
-			foreach (int promotionPiece in promotionPieces)
+			cur.MakeMove(move);
+			System.Threading.Thread.Sleep(g.perftSpeed);
+
+			PerftCount childCount = Perft(depth - 1);
+			count.Add(childCount);
+			bool isCapture = cur.b.capturedPieceN != -1; // only for debugging
+
+			cur.UnmakeMove(move, ref curB, ref count);
+			System.Threading.Thread.Sleep(g.perftSpeed);
+
+			if (depth == g.perftDepth)
 			{
-				cur.MakeMove(move[0], move[1], promotionPiece);
-				System.Threading.Thread.Sleep(g.perftSpeed);
-
-				PerftCount childCount = Perft(depth - 1);
-				count.Add(childCount);
-				bool isCapture = cur.b.capturedPieceN != -1; // only for debugging
-
-				cur.UnmakeMove(move[0], move[1], pieceN, promotionPiece, ref curB, ref count);
-				System.Threading.Thread.Sleep(g.perftSpeed);
-
-				if (depth == g.perftDepth)
-				{
-					int movingPieceN = cur.FindPieceN(move[0]);
-					GD.Print(g.MoveToString(movingPieceN, move, isCapture), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
-				}
+				GD.Print(g.MoveToString(move, isCapture), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
 			}
 		}
 
