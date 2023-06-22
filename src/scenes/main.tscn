@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://wtlwn2roashj"]
+[gd_scene load_steps=17 format=3 uid="uid://wtlwn2roashj"]
 
 [ext_resource type="Texture2D" uid="uid://vbfddu354mps" path="res://src/assets/light.png" id="1_7jydu"]
 [ext_resource type="Script" path="res://src/scripts/main.cs" id="1_d4knv"]
@@ -58,6 +58,12 @@ sources/3 = SubResource("TileSetAtlasSource_lfubt")
 sources/4 = SubResource("TileSetAtlasSource_itrsk")
 sources/5 = SubResource("TileSetAtlasSource_b3oqn")
 
+[sub_resource type="SystemFont" id="SystemFont_68ufa"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_sgnwh"]
+font = SubResource("SystemFont_68ufa")
+font_size = 31
+
 [node name="Main" type="Node2D"]
 script = ExtResource("1_d4knv")
 
@@ -114,3 +120,12 @@ modulate = Color(1, 1, 1, 0.560784)
 position = Vector2(1197, 133)
 scale = Vector2(1.95, 1.95)
 texture = ExtResource("5_djxg1")
+
+[node name="DebugLabel" type="Label" parent="."]
+offset_left = 1162.0
+offset_top = 347.0
+offset_right = 1323.0
+offset_bottom = 394.0
+text = "Awaw Pogi
+"
+label_settings = SubResource("LabelSettings_sgnwh")

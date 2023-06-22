@@ -785,4 +785,33 @@ public partial class Chess
 
 		return pinned;
 	}
+
+	public int Evaluate()
+	{
+		/* Draw */
+		if (b.gameOutcome == 2)
+		{
+			return 0;
+		}
+
+		/* Checkmate */
+		if (b.gameOutcome != -1)
+		{
+			return g.sign[b.gameOutcome] * 32000;
+		}
+
+		/* Material Value */
+		int materialValue = 0;
+
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			for (int pieceN = 0; pieceN < 6; pieceN++)
+			{
+				materialValue += g.sign[colorN] * g.piecesValue[pieceN] * b.piecesCount[colorN, pieceN];
+			}
+		}
+
+
+		return materialValue;
+	}
 }

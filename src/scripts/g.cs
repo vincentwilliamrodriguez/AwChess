@@ -4,9 +4,12 @@ using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
 
-public static partial class g
+public static partial class g : Object
 {
 	public static bool[] isPlayer = new bool[] {false, false};
+	public static int botSpeed = 50;
+	public static int botDepth = 4;
+
 	public static bool isBoardFlipped = isPlayer[1] && !isPlayer[0]; // only flip when black is player but not both
 	public static bool isMovingPiece = false;
 	public static int selectedPiece = -1; // [piece, index]
@@ -39,6 +42,13 @@ public static partial class g
 	public static int perftSpeed = 0;
 	public static int perftDepth = 4;
 	public static ulong testHighlight = 0UL;
+	public static string debugLabel = "";
+	
+	public static Random random = new Random();
+	public static int[] sign = new int[2] {1, -1};
+	public static int[] piecesValue = {0, 900, 300, 300, 500, 100};
+	public static int positiveInfinity = 10000000;
+	public static int negativeInfinity = -10000000;
 
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{

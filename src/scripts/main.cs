@@ -9,21 +9,23 @@ public partial class main : Node2D
 	public AwChess[] AwChessBot = new AwChess[2];
 	public GodotThread[] AwChessThread = new GodotThread[2];
 
-	public TileMap board_pieces_node;
+	public TileMap boardPiecesNode;
 	public ColorRect turnIndicator;
 	public Sprite2D promotionBackground;
+	public Label debugLabelNode;
 	
 	public override void _Ready()
 	{
-		board_pieces_node = (TileMap) GetNode("Board_Pieces");
+		boardPiecesNode = (TileMap) GetNode("Board_Pieces");
 		turnIndicator = (ColorRect) GetNode("TurnIndicator");
 		promotionBackground = (Sprite2D) GetNode("PromotionBackground");
+		debugLabelNode = (Label) GetNode("DebugLabel");
 		
 		g.Init();
 
 		cur = new Chess();
 		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
+		// cur.ImportFromFEN("rnbqkbnr/qqqqqqqq/8/8/8/8/QQQQQQQQ/RNBQKBNR w KQkq - 0 1");
 		
 
 		InitBoard();
@@ -48,17 +50,22 @@ public partial class main : Node2D
 	public override void _Process(double delta) {
 		UpdatePieces();
 		HighlightPossibleMoves();
+		g.debugLabel = "Game Outcome: " + Convert.ToString(cur.b.gameOutcome);
+		debugLabelNode.Text = g.debugLabel;
+
 		// Random random = new Random();
-		// HighlightBitboard(random.Next(2) == 0 ? ulong.MaxValue : ulong.MinValue);
+		HighlightBitboard(g.testHighlight);
 
 		int turn = cur.b.sideToMove;
 
-		if (!g.isPlayer[turn] && cur.b.gameOutcome == -1)
+		if (!g.isPlayer[turn] && 					// AwChess bot's turn
+			!AwChessThread[1 - turn].IsAlive() &&	// Opponent bot not running
+			cur.b.gameOutcome == -1)				// Game not ended yet
 		{
 			/* Not Thinking */
 			if (!AwChessThread[turn].IsAlive())
 			{
-				Action botMove = () => {AwChessBot[turn].RandomMove();};
+				Action botMove = () => {AwChessBot[turn].SearchMove();};
 				AwChessBot[turn].UpdateCopy();
 				AwChessThread[turn].Start(Callable.From(botMove));
 			}
@@ -79,12 +86,12 @@ public partial class main : Node2D
 			if (Input.IsActionJustReleased("click"))
 			{
 				g.perftSpeed = 0;
-				Vector2I coor = board_pieces_node.LocalToMap(mouseEvent.Position);
+				Vector2I coor = boardPiecesNode.LocalToMap(mouseEvent.Position);
 
 				if (g.isPromoting && g.isPlayer[cur.b.sideToMove] && cur.b.gameOutcome == -1)
 				{
 					// end choosing promotion piece
-					Vector2I promotionAtlas = board_pieces_node.GetCellAtlasCoords(4, coor);
+					Vector2I promotionAtlas = boardPiecesNode.GetCellAtlasCoords(4, coor);
 					int promotionPiece = promotionAtlas.X;
 
 					if (promotionPiece != -1) // if player didn't click on non-promotion pieces squares
@@ -135,6 +142,7 @@ public partial class main : Node2D
 							{
 								cur.MakeMove(new Move(g.selectedPieceN, g.selectedPiece, targetIndex, -1));
 								UpdatePieces();
+								GD.Print(cur.Evaluate());
 							}
 							else
 							{
@@ -163,16 +171,16 @@ public partial class main : Node2D
 			{
 				if ((i + j) % 2 == 0)
 				{
-					board_pieces_node.SetCell(0, new Vector2I(i, j), 0, new Vector2I(0, 0));
+					boardPiecesNode.SetCell(0, new Vector2I(i, j), 0, new Vector2I(0, 0));
 				} else {
-					board_pieces_node.SetCell(0, new Vector2I(i, j), 1, new Vector2I(0, 0));
+					boardPiecesNode.SetCell(0, new Vector2I(i, j), 1, new Vector2I(0, 0));
 				}
 			}
 		}
 	}
 
 	public void UpdatePieces() {
-		board_pieces_node.ClearLayer(1);
+		boardPiecesNode.ClearLayer(1);
 		
 		Color turnColor = (cur.b.sideToMove == 0) ? new Color(1, 1, 1, 1) : new Color(0, 0, 0, 1);
 		turnIndicator.Color = turnColor;
@@ -185,7 +193,7 @@ public partial class main : Node2D
 					if (Convert.ToBoolean((pieceBits >> i) & 1UL)) { // checks if pieceBits[i] is 1 or true, then places the piece
 						int x = g.CanFlip(i % 8);
 						int y = g.CanFlip(7 - (i / 8));
-						board_pieces_node.SetCell(1, 					// 2nd Layer (pieces)
+						boardPiecesNode.SetCell(1, 					// 2nd Layer (pieces)
 												  new Vector2I(x, y), 	// Coordinate in the chessboard
 												  2, 					// ID of pieces.png
 												  new Vector2I(pieceN, colorN)); // Atlas coordinates of piece
@@ -196,7 +204,7 @@ public partial class main : Node2D
 	}
 
 	public void HighlightBitboard(ulong bitboard) {
-		board_pieces_node.ClearLayer(2);
+		boardPiecesNode.ClearLayer(2);
 
 		ulong bitboardTemp = bitboard;
 		for (int i = 0; i < 64; i++)
@@ -204,7 +212,7 @@ public partial class main : Node2D
 			if ((bitboardTemp & 1UL) == 1) {
 				int x = g.CanFlip(i % 8);
 				int y = g.CanFlip(7 - (i / 8));
-				board_pieces_node.SetCell(2, new Vector2I(x, y), 3, new Vector2I(0, 0));
+				boardPiecesNode.SetCell(2, new Vector2I(x, y), 3, new Vector2I(0, 0));
 			}
 
 			bitboardTemp = bitboardTemp >> 1;
@@ -212,7 +220,7 @@ public partial class main : Node2D
 	}
 
 	public void HighlightPossibleMoves() {
-		board_pieces_node.ClearLayer(3);
+		boardPiecesNode.ClearLayer(3);
 		ulong silentMoves = g.curHighlightedMoves & ~cur.b.occupancy;
 		ulong captureMoves = g.curHighlightedMoves & cur.b.occupancy;
 
@@ -222,7 +230,7 @@ public partial class main : Node2D
 			{
 				int x = g.CanFlip(i % 8);
 				int y = g.CanFlip(7 - (i / 8));
-				board_pieces_node.SetCell(3, new Vector2I(x, y), 4, new Vector2I(0, 0));
+				boardPiecesNode.SetCell(3, new Vector2I(x, y), 4, new Vector2I(0, 0));
 			}
 		}
 
@@ -230,7 +238,7 @@ public partial class main : Node2D
 		{
 			int x = g.CanFlip(i % 8);
 			int y = g.CanFlip(7 - (i / 8));
-			board_pieces_node.SetCell(3, new Vector2I(x, y), 3, new Vector2I(0, 0));
+			boardPiecesNode.SetCell(3, new Vector2I(x, y), 3, new Vector2I(0, 0));
 		}
 
 		
@@ -238,14 +246,14 @@ public partial class main : Node2D
 		{
 			int x = g.CanFlip(i % 8);
 			int y = g.CanFlip(7 - (i / 8));
-			board_pieces_node.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
+			boardPiecesNode.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
 		}
 
 		if (cur.b.isInCheck)
 		{
 			int x = g.CanFlip(cur.b.kingPos % 8);
 			int y = g.CanFlip(7 - (cur.b.kingPos / 8));
-			board_pieces_node.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
+			boardPiecesNode.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
 		}
 	}
 
@@ -253,15 +261,15 @@ public partial class main : Node2D
 	{
 		if (g.isPromoting)
 		{
-			board_pieces_node.SetCell(4, new Vector2I(8, 0), 2, new Vector2I(1, cur.b.sideToMove)); // queen
-			board_pieces_node.SetCell(4, new Vector2I(9, 0), 2, new Vector2I(4, cur.b.sideToMove)); // rook
-			board_pieces_node.SetCell(4, new Vector2I(8, 1), 2, new Vector2I(2, cur.b.sideToMove)); // bishop
-			board_pieces_node.SetCell(4, new Vector2I(9, 1), 2, new Vector2I(3, cur.b.sideToMove)); // knight
+			boardPiecesNode.SetCell(4, new Vector2I(8, 0), 2, new Vector2I(1, cur.b.sideToMove)); // queen
+			boardPiecesNode.SetCell(4, new Vector2I(9, 0), 2, new Vector2I(4, cur.b.sideToMove)); // rook
+			boardPiecesNode.SetCell(4, new Vector2I(8, 1), 2, new Vector2I(2, cur.b.sideToMove)); // bishop
+			boardPiecesNode.SetCell(4, new Vector2I(9, 1), 2, new Vector2I(3, cur.b.sideToMove)); // knight
 			promotionBackground.Show();
 		}
 		else
 		{
-			board_pieces_node.ClearLayer(4);
+			boardPiecesNode.ClearLayer(4);
 			promotionBackground.Hide();
 		}
 	}
@@ -275,6 +283,7 @@ public partial class main : Node2D
 	public void JoinThread(int color)
 	{
 		AwChessThread[color].WaitToFinish();
+		GD.Print(cur.Evaluate());
 	}
 }
 
