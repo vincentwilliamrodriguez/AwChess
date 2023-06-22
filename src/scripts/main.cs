@@ -25,7 +25,7 @@ public partial class main : Node2D
 
 		cur = new Chess();
 		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("rnbqkbnr/qqqqqqqq/8/8/8/8/QQQQQQQQ/RNBQKBNR w KQkq - 0 1");
+		// cur.ImportFromFEN("rnbqkbRr/p7/1pppp1p1/8/8/8/PPPPPP2/RNBQKBNR b KQkq - 0 8");
 		
 
 		InitBoard();
@@ -50,7 +50,7 @@ public partial class main : Node2D
 	public override void _Process(double delta) {
 		UpdatePieces();
 		HighlightPossibleMoves();
-		g.debugLabel = "Game Outcome: " + Convert.ToString(cur.b.gameOutcome);
+		g.debugLabel = "Outcome: " + Convert.ToString(cur.b.gameOutcome);
 		debugLabelNode.Text = g.debugLabel;
 
 		// Random random = new Random();

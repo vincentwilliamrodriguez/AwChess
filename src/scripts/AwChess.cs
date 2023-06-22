@@ -97,13 +97,20 @@ public partial class AwChess : Node
 
 	public void SearchMove()
 	{
-		int sign = g.sign[botColor];
-		MoveScore best = NegaMax(g.botDepth, g.negativeInfinity, g.positiveInfinity, sign);
+		var watch = System.Diagnostics.Stopwatch.StartNew();
+		
+		MoveScore best = NegaMax(g.botDepth, g.negativeInfinity, g.positiveInfinity, g.sign[botColor]);
 		curRef.MakeMove(best.move);
 
-		GD.Print(String.Format("Bot Eval: {0}\nTotal Positions: {1}\n", best.score, best.count.nodes));
+		GD.Print(String.Format("Bot {2} Eval: {0}\nBest Move: {3} to {4}\nTotal Positions: {1}\n", best.score, best.count.nodes, botColor, best.move.start, best.move.end));
+		best.PrintPrincipal();
 
-		System.Threading.Thread.Sleep(g.botSpeed);
+		watch.Stop();
+		int timeDiff = g.botSpeed - (int) watch.ElapsedMilliseconds;
+
+		if (timeDiff > 0)
+			System.Threading.Thread.Sleep(timeDiff);
+
         mainJoinThread.CallDeferred();
 	}
 
@@ -124,16 +131,20 @@ public partial class AwChess : Node
 
 		foreach (Move move in possibleMoves)
 		{
+
 			curCopy.MakeMove(move);
 
 			MoveScore movePack = NegaMax(depth - 1, -beta, -alpha, -sign);
 			int moveScore = -movePack.score;
 			best.count.Add(movePack.count);
 			
-			if (moveScore >= best.score)
+			if (moveScore > best.score)
 			{
+				// GD.Print(String.Format("Depth: {0}   {1}, {2} to {3}   Prev: {4}   New: {5}", depth, move.pieceN, move.start, move.end, best.score, moveScore));
+
 				best.move = move;
 				best.score = moveScore;
+				best.principal = movePack.principal;
 				// GD.Print(String.Format("Depth: {0}   Move: {1} to {2}", depth - 1, movePack.move.start, movePack.move.end));
 			}
 
@@ -146,6 +157,7 @@ public partial class AwChess : Node
 			}
 		}
 
+		best.AddMoveToPrincipal();
 		return best;
 	}
 }
@@ -169,14 +181,28 @@ public struct PerftCount
 
 public struct MoveScore
 {
-	public PerftCount count;
 	public Move move;
 	public int score;
+	public PerftCount count;
+	public List<Move> principal = new List<Move> {};
 
 	public MoveScore(PerftCount count, Move move, int score)
 	{
 		this.count = count;
 		this.move = move;
 		this.score = score;
+	}
+
+	public void AddMoveToPrincipal()
+	{
+		principal.Insert(0, move);
+	}
+
+	public void PrintPrincipal()
+	{
+		foreach (Move move in principal)
+		{
+			GD.Print(String.Format("From {0} to {1}", move.start, move.end));
+		}
 	}
 }
