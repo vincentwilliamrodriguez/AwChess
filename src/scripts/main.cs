@@ -24,8 +24,8 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		// cur.ImportFromFEN(g.startingPosition);
-		cur.ImportFromFEN("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+		cur.ImportFromFEN(g.startingPosition);
+		// cur.ImportFromFEN("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
 	
 		InitBoard();
 		UpdatePieces();
@@ -184,6 +184,7 @@ public partial class main : Node2D
 		cur.MakeMove(playerMove);
 
 		g.staticEvaluation = cur.Evaluate();
+		GD.Print(g.MoveToString(playerMove), '\n');
 	}
 
 	public void InitBoard() {

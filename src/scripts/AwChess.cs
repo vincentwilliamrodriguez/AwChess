@@ -101,7 +101,7 @@ public partial class AwChess : Node
 	{
 		var watch = System.Diagnostics.Stopwatch.StartNew();
 		
-		MoveScore best = NegaMax(g.botDepth, g.negativeInfinity, g.positiveInfinity, g.sign[botColor]);
+		MoveScore best = NegaMax(g.botDepth, g.negativeInfinity, g.positiveInfinity);
 		watch.Stop();
 
 		int timeDiff = g.botSpeed - (int) watch.ElapsedMilliseconds;
@@ -119,28 +119,25 @@ public partial class AwChess : Node
         mainJoinThread.CallDeferred();
 	}
 
-	public MoveScore NegaMax(int depth, int alpha, int beta, int sign)
+	public MoveScore NegaMax(int depth, int alpha, int beta)
 	{
 		MoveScore best = new MoveScore(new PerftCount(), new Move(), g.negativeInfinity);
 
 		if (depth == 0 || curCopy.b.gameOutcome != -1)
 		{
-			best.count.nodes = 1;
-			best.score = sign * (curCopy.Evaluate());
-			return best;
+			MoveScore qBest = QuiescenceSearch(alpha, beta);
+			return qBest;
 		}
 
 
 		List<Move> possibleMoves = g.OrderMoves(curCopy.b.possibleMoves, curCopy);
-		
-		// REMINDER: add move ordering
 		Board curB = curCopy.b.Clone();
 
 		foreach (Move move in possibleMoves)
 		{
 			curCopy.MakeMove(move);
 			
-			MoveScore movePack = NegaMax(depth - 1, -beta, -alpha, -sign);
+			MoveScore movePack = NegaMax(depth - 1, -beta, -alpha);
 			int moveScore = -movePack.score;
 			best.count.Add(movePack.count);
 			
@@ -162,6 +159,60 @@ public partial class AwChess : Node
 		}
 
 		best.AddMoveToPrincipal();
+		best.count.nodes++;
+		return best;
+	}
+
+	public MoveScore QuiescenceSearch(int alpha, int beta)
+	{
+		MoveScore best = new MoveScore(new PerftCount(), new Move(-1, -1, -1), 
+									   g.sign[curCopy.b.sideToMove] * (curCopy.Evaluate())); // static evaluation
+		List<Move> possibleMoves = curCopy.b.possibleMoves;
+		List<Move> captureMoves = new List<Move> {};
+		Board curB = curCopy.b.Clone();
+
+		foreach (Move move in possibleMoves)
+		{
+			if (move.capturedPiece != -1)
+			{
+				captureMoves.Add(move);
+			}
+		}
+
+		alpha = Math.Max(alpha, best.score);
+		if (alpha >= beta || captureMoves.Count == 0)
+		{
+			best.count.nodes = 1;
+			return best;
+		}
+
+		captureMoves = g.OrderMoves(captureMoves, curCopy);
+		foreach (Move move in captureMoves)
+		{
+			curCopy.MakeMove(move);
+			
+			MoveScore movePack = QuiescenceSearch(-beta, -alpha);
+			int moveScore = -movePack.score;
+			best.count.Add(movePack.count);
+			
+			if (moveScore > best.score)
+			{
+				best.move = move;
+				best.score = moveScore;
+				best.principal = movePack.principal;
+			}
+
+			curCopy.UnmakeMove(move, ref curB, ref best.count);
+
+			alpha = Math.Max(alpha, best.score);
+			if (alpha >= beta)
+			{
+				break;
+			}
+		}
+
+		best.AddMoveToPrincipal();
+		best.count.nodes++;
 		return best;
 	}
 }
@@ -199,7 +250,8 @@ public struct MoveScore
 
 	public void AddMoveToPrincipal()
 	{
-		principal.Insert(0, move);
+		if (move.start != -1 && move.end != -1)
+			principal.Insert(0, move);
 	}
 
 	public void PrintPrincipal()

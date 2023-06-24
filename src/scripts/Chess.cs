@@ -67,7 +67,7 @@ public struct Move
 	public int promotionPiece = -1;
 	public int capturedPiece = -1;
 
-	public Move(int pieceN, int start, int end, int promotionPiece = -1, int capturedPiece = -1)
+	public Move(int pieceN = -1, int start = -1, int end = -1, int promotionPiece = -1, int capturedPiece = -1)
 	{
 		this.pieceN = pieceN;
 		this.start = start;
@@ -350,14 +350,6 @@ public partial class Chess
 		/* Reversing Side To Move */
 		b.sideToMove = 1 - b.sideToMove;
 
-		/* Reversing En Passant */
-		if (endIndex == bPrev.enPassantSquare && startPieceN == 5)
-		{
-			int targetOfEnPassant = endIndex + g.SinglePush(1 - b.sideToMove);
-			b.pieces[1 - b.sideToMove, 5] |= 1UL << targetOfEnPassant;
-			count.enPassants++;
-		}
-
 		/* Reversing Castling */
 		if (startPieceN == 0 && (startIndex % 8) == 4)
 		{
@@ -384,9 +376,19 @@ public partial class Chess
 		b.pieces[b.sideToMove, startPieceN] &= ~(1UL << endIndex);
 		b.pieces[b.sideToMove, startPieceN] |= 1UL << startIndex;
 
+		/* Reversing Capture */
 		if (move.capturedPiece != -1)
 		{
-			b.pieces[1 - b.sideToMove, move.capturedPiece] |= 1UL << endIndex;
+			if (endIndex == bPrev.enPassantSquare && startPieceN == 5) // if move is en passant
+			{
+				int targetOfEnPassant = endIndex + g.SinglePush(1 - b.sideToMove);
+				b.pieces[1 - b.sideToMove, 5] |= 1UL << targetOfEnPassant;
+				count.enPassants++;
+			}
+			else
+			{
+				b.pieces[1 - b.sideToMove, move.capturedPiece] |= 1UL << endIndex;
+			}
 		}
 
 		/* Reversing Other Variables */
@@ -439,7 +441,7 @@ public partial class Chess
 
 					if (pieceN == 5 && endIndex == b.enPassantSquare) // if en passant capture
 					{
-						capturedPiece = -1;
+						capturedPiece = 5;
 					}
 
 					int[] promotionPieces = g.IsPromotion(b.sideToMove, pieceN, endIndex) ?
