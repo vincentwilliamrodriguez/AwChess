@@ -26,8 +26,7 @@ public struct Board
 
 	public Dictionary<int, ulong>[] possibleMovesBB = new Dictionary<int, ulong>[6]; // only includes sideToMove
 	public List<Move> possibleMoves = new List<Move> {};
-	public int[] lastMove = new int[] {-1, -1};
-	public int capturedPieceN = -1;
+	public Move lastMove = new Move(-1, -1, -1);
 	public int gameOutcome = -1; // -1 = ongoing, 0 = white won, 1 = black won, 2 = draw
 
 	public Board() {}
@@ -54,7 +53,6 @@ public struct Board
 
 		clone.possibleMovesBB = possibleMovesBB;
 		clone.lastMove = lastMove;
-		clone.capturedPieceN = capturedPieceN;
 		clone.gameOutcome = gameOutcome;
 
 		return clone;
@@ -67,13 +65,15 @@ public struct Move
 	public int start = -1;
 	public int end = -1;
 	public int promotionPiece = -1;
+	public int capturedPiece = -1;
 
-	public Move(int pieceN, int start, int end, int promotionPiece)
+	public Move(int pieceN, int start, int end, int promotionPiece = -1, int capturedPiece = -1)
 	{
 		this.pieceN = pieceN;
 		this.start = start;
 		this.end = end;
 		this.promotionPiece = promotionPiece;
+		this.capturedPiece = capturedPiece;
 	}
 }
 
@@ -242,15 +242,11 @@ public partial class Chess
 		int promotionPiece = move.promotionPiece;
 
 		/* Updating Pieces */
-		int endPieceN = -1;
-		b.capturedPieceN = -1;
 		bool isWhitesTurn = b.sideToMove == 0;
 
-		if ((b.occupancy >> endIndex & 1UL) == 1)
+		if (move.capturedPiece != -1)
 		{
-			endPieceN = FindPieceN(endIndex);
-			b.capturedPieceN = endPieceN;
-			b.pieces[1 - b.sideToMove, endPieceN] &= ~(1UL << endIndex);
+			b.pieces[1 - b.sideToMove, move.capturedPiece] &= ~(1UL << endIndex);
 		}
 
 		int startPieceN = move.pieceN;
@@ -284,7 +280,7 @@ public partial class Chess
 			b.castlingRights[b.sideToMove, 1] = false;
 		}
 
-		if (startPieceN == 4 || endPieceN == 4) // if rook moved or got captured
+		if (startPieceN == 4 || move.capturedPiece == 4) // if rook moved or got captured
 		{
 			for (int sideN = 0; sideN < 2; sideN++)
 			{
@@ -320,7 +316,7 @@ public partial class Chess
 		}
 		
 		/* Updating Clocks */
-		if (endPieceN != -1 || startPieceN == 5)
+		if (move.capturedPiece != -1 || startPieceN == 5)
 		{
 			b.halfMoveClock = 0;
 		}
@@ -336,8 +332,7 @@ public partial class Chess
 
 		/* Updating Side To Move */
 		b.sideToMove = 1 - b.sideToMove;
-		b.lastMove[0] = startIndex;
-		b.lastMove[1] = endIndex;
+		b.lastMove = move;
 
 		/* Updating Functions */
 		Update();
@@ -389,9 +384,9 @@ public partial class Chess
 		b.pieces[b.sideToMove, startPieceN] &= ~(1UL << endIndex);
 		b.pieces[b.sideToMove, startPieceN] |= 1UL << startIndex;
 
-		if (b.capturedPieceN != -1)
+		if (move.capturedPiece != -1)
 		{
-			b.pieces[1 - b.sideToMove, b.capturedPieceN] |= 1UL << endIndex;
+			b.pieces[1 - b.sideToMove, move.capturedPiece] |= 1UL << endIndex;
 		}
 
 		/* Reversing Other Variables */
@@ -440,13 +435,20 @@ public partial class Chess
 			{
 				foreach (var endIndex in g.Serialize(pieceType[piece]))
 				{
+					int capturedPiece = FindPieceN(endIndex); // -1 if not capture, pieceN if capture
+
+					if (pieceN == 5 && endIndex == b.enPassantSquare) // if en passant capture
+					{
+						capturedPiece = -1;
+					}
+
 					int[] promotionPieces = g.IsPromotion(b.sideToMove, pieceN, endIndex) ?
 									g.promotionPieces : // if move is promoting
 									new int[] {-1}; // if move is not promoting
 
 					foreach (int promotionPiece in promotionPieces)
 					{
-						b.possibleMoves.Add(new Move(pieceN, piece, endIndex, promotionPiece));
+						b.possibleMoves.Add(new Move(pieceN, piece, endIndex, promotionPiece, capturedPiece));
 					}
 				}
 			}

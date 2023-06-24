@@ -6,9 +6,9 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {false, false};
-	public static int botSpeed = 2000;
-	public static int botDepth = 5;
+	public static bool[] isPlayer = new bool[] {true, false};
+	public static int botSpeed = 1000;
+	public static int botDepth = 6;
 
 	public static bool isBoardFlipped = isPlayer[1] && !isPlayer[0]; // only flip when black is player but not both
 	public static bool isMovingPiece = false;
@@ -40,13 +40,14 @@ public static partial class g : Object
 	public static ulong[,] inBetween = new ulong[64, 64];
 
 	public static int perftSpeed = 0;
-	public static int perftDepth = 4;
+	public static int perftDepth = 5;
 	public static ulong testHighlight = 0UL;
 	public static string debugLabel = "";
 	
 	public static Random random = new Random();
 	public static int[] sign = new int[2] {1, -1};
 	public static int[] piecesValue = {0, 900, 300, 300, 500, 100};
+	public static int staticEvaluation = 0;
 	public static int positiveInfinity = 10000000;
 	public static int negativeInfinity = -10000000;
 
@@ -125,7 +126,7 @@ public static partial class g : Object
 		return isBoardFlipped ? 7-n : n;
 	}
 
-	public static string MoveToString(Move move, bool isCapture)
+	public static string MoveToString(Move move)
 	{
 		char piece = piecesMoveArray[move.pieceN];
 		string start = fileArray[move.start % 8] + Convert.ToString(move.start / 8 + 1);
@@ -142,9 +143,18 @@ public static partial class g : Object
 		}
 
 		/* Move connector */
-		char connector = isCapture ? 'x' : '-';
+		char connector = (move.capturedPiece != -1) ? 'x' : '-';
 
 		return piece + start + connector + end;
+	}
+
+	public static void PrintMoveList(List<Move> source)
+	{
+		GD.Print();
+		foreach (Move move in source)
+		{
+			GD.Print(MoveToString(move));
+		}
 	}
 
 	public static bool IsPromotion(int colorN, int pieceN, int index)
@@ -232,5 +242,40 @@ public static partial class g : Object
 				}
 			}
 		}
+	}
+
+	/* AwChess Helper Methods */
+	
+	public static List<Move> OrderMoves(List<Move> source, Chess board)
+	{
+		List<int> moveScores = new List<int> {};
+
+		foreach (Move move in source)
+		{
+			int moveScore = 0;
+
+			/* Capture Moves */
+			if (move.capturedPiece != -1)
+			{
+				moveScore += 10 * g.piecesValue[move.capturedPiece]
+								- g.piecesValue[move.pieceN];
+				
+				if (move.end == board.b.lastMove.end) // last moved piece
+				{
+					moveScore += 1001;
+				}
+			}
+
+			/* Promotion Moves */
+			if (move.promotionPiece != -1)
+			{
+				moveScore += g.piecesValue[move.promotionPiece];
+			}
+
+			moveScores.Add(moveScore);
+		}
+
+		List<Move> sortedMoves = source.OrderByDescending(move => moveScores[source.IndexOf(move)]).ToList();
+		return sortedMoves;
 	}
 }

@@ -24,12 +24,12 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("rnbqkbRr/p7/1pppp1p1/8/8/8/PPPPPP2/RNBQKBNR b KQkq - 0 8");
-		
-
+		// cur.ImportFromFEN(g.startingPosition);
+		cur.ImportFromFEN("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+	
 		InitBoard();
-		UpdatePieces();	
+		UpdatePieces();
+		g.staticEvaluation = cur.Evaluate();
 
 		/* AwChess Bot Generation */
 		for (int colorN = 0; colorN < 2; colorN++)
@@ -45,12 +45,17 @@ public partial class main : Node2D
 				// ActivateAwChessPerft(colorN);
 			}
 		}
+
+		// g.PrintMoveList(cur.b.possibleMoves);
+		// g.PrintMoveList(g.OrderMoves(cur.b.possibleMoves, cur));
 	}
 
 	public override void _Process(double delta) {
 		UpdatePieces();
 		HighlightPossibleMoves();
-		g.debugLabel = "Outcome: " + Convert.ToString(cur.b.gameOutcome);
+		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}", 
+									 Convert.ToString(cur.b.gameOutcome),
+									 g.staticEvaluation);
 		debugLabelNode.Text = g.debugLabel;
 
 		// Random random = new Random();
@@ -96,7 +101,7 @@ public partial class main : Node2D
 
 					if (promotionPiece != -1) // if player didn't click on non-promotion pieces squares
 					{
-						cur.MakeMove(new Move(g.selectedPieceN, g.selectedPiece, g.promotionTarget, promotionPiece));
+						MakePlayerMove(g.promotionTarget, promotionPiece);
 						UpdatePieces();
 					}
 					
@@ -140,9 +145,8 @@ public partial class main : Node2D
 							
 							if (!g.isPromoting)
 							{
-								cur.MakeMove(new Move(g.selectedPieceN, g.selectedPiece, targetIndex, -1));
+								MakePlayerMove(targetIndex);
 								UpdatePieces();
-								GD.Print(cur.Evaluate());
 							}
 							else
 							{
@@ -162,6 +166,24 @@ public partial class main : Node2D
 				g.perftSpeed = 50;
 			}
 		}
+	}
+
+	public void MakePlayerMove(int targetIndex, int promotionPiece = -1)
+	{
+		Move playerMove = new Move();
+
+		foreach (Move move in cur.b.possibleMoves)
+		{
+			if (move.pieceN == g.selectedPieceN && move.start == g.selectedPiece && move.end == targetIndex)
+			{
+				playerMove = move;
+			}
+		}
+		
+		playerMove.promotionPiece = promotionPiece;
+		cur.MakeMove(playerMove);
+
+		g.staticEvaluation = cur.Evaluate();
 	}
 
 	public void InitBoard() {
@@ -224,7 +246,7 @@ public partial class main : Node2D
 		ulong silentMoves = g.curHighlightedMoves & ~cur.b.occupancy;
 		ulong captureMoves = g.curHighlightedMoves & cur.b.occupancy;
 
-		foreach (int i in cur.b.lastMove)
+		foreach (int i in new int[2] {cur.b.lastMove.start, cur.b.lastMove.end})
 		{
 			if (i != -1)
 			{
@@ -283,7 +305,6 @@ public partial class main : Node2D
 	public void JoinThread(int color)
 	{
 		AwChessThread[color].WaitToFinish();
-		GD.Print(cur.Evaluate());
 	}
 }
 

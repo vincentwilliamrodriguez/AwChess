@@ -9,6 +9,9 @@ public partial class AwChess : Node
     public Chess curCopy;
     public Callable mainJoinThread;
     public int botColor;
+	public bool debug = false;
+	public bool debug4;
+	public bool debug3;
 
     public AwChess(int color, ref Chess source, Callable joinThread)
     {
@@ -80,7 +83,6 @@ public partial class AwChess : Node
 
 			PerftCount childCount = Perft(depth - 1);
 			count.Add(childCount);
-			bool isCapture = curCopy.b.capturedPieceN != -1; // only for debugging
 
 			curCopy.UnmakeMove(move, ref curB, ref count);
 			System.Threading.Thread.Sleep(g.perftSpeed);
@@ -88,7 +90,7 @@ public partial class AwChess : Node
 			if (depth == g.perftDepth)
 			{
 				int pieceN = move.pieceN;
-				GD.Print(g.MoveToString(move, isCapture), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
+				GD.Print(g.MoveToString(move), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
 			}
 		}
 
@@ -100,23 +102,26 @@ public partial class AwChess : Node
 		var watch = System.Diagnostics.Stopwatch.StartNew();
 		
 		MoveScore best = NegaMax(g.botDepth, g.negativeInfinity, g.positiveInfinity, g.sign[botColor]);
-		curRef.MakeMove(best.move);
-
-		GD.Print(String.Format("Bot {2} Eval: {0}\nBest Move: {3} to {4}\nTotal Positions: {1}\n", best.score, best.count.nodes, botColor, best.move.start, best.move.end));
-		best.PrintPrincipal();
-
 		watch.Stop();
-		int timeDiff = g.botSpeed - (int) watch.ElapsedMilliseconds;
 
+		int timeDiff = g.botSpeed - (int) watch.ElapsedMilliseconds;
 		if (timeDiff > 0)
 			System.Threading.Thread.Sleep(timeDiff);
 
+
+		curRef.MakeMove(best.move);
+
+		GD.Print(String.Format("Bot {2} Eval: {0}\nBest Move: {3}\nTotal Positions: {1}\n", best.score, best.count.nodes, botColor, g.MoveToString(best.move)));
+		best.PrintPrincipal();
+		GD.Print("\n===============================================================\n");
+
+		g.staticEvaluation = curRef.Evaluate();
         mainJoinThread.CallDeferred();
 	}
 
 	public MoveScore NegaMax(int depth, int alpha, int beta, int sign)
 	{
-		MoveScore best = new MoveScore(new PerftCount(), new Move(), int.MinValue);
+		MoveScore best = new MoveScore(new PerftCount(), new Move(), g.negativeInfinity);
 
 		if (depth == 0 || curCopy.b.gameOutcome != -1)
 		{
@@ -125,32 +130,31 @@ public partial class AwChess : Node
 			return best;
 		}
 
-		List<Move> possibleMoves = curCopy.b.possibleMoves;
+
+		List<Move> possibleMoves = g.OrderMoves(curCopy.b.possibleMoves, curCopy);
+		
 		// REMINDER: add move ordering
 		Board curB = curCopy.b.Clone();
 
 		foreach (Move move in possibleMoves)
 		{
-
 			curCopy.MakeMove(move);
-
+			
 			MoveScore movePack = NegaMax(depth - 1, -beta, -alpha, -sign);
 			int moveScore = -movePack.score;
 			best.count.Add(movePack.count);
 			
 			if (moveScore > best.score)
 			{
-				// GD.Print(String.Format("Depth: {0}   {1}, {2} to {3}   Prev: {4}   New: {5}", depth, move.pieceN, move.start, move.end, best.score, moveScore));
-
 				best.move = move;
 				best.score = moveScore;
 				best.principal = movePack.principal;
-				// GD.Print(String.Format("Depth: {0}   Move: {1} to {2}", depth - 1, movePack.move.start, movePack.move.end));
 			}
 
 			curCopy.UnmakeMove(move, ref curB, ref best.count);
 			
 			alpha = Math.Max(alpha, moveScore);
+			
 			if (alpha >= beta)
 			{
 				break;
@@ -202,7 +206,71 @@ public struct MoveScore
 	{
 		foreach (Move move in principal)
 		{
-			GD.Print(String.Format("From {0} to {1}", move.start, move.end));
+			GD.Print(g.MoveToString(move));
 		}
 	}
 }
+
+
+/* NEGAMAX DEBUGGING */
+/* 
+if (debug && depth == 3)
+
+
+GD.Print(possibleMoves.Count);
+
+if (depth == 4)
+{
+	debug4 = (move.start == 8 && move.end == 16);
+}
+
+else if (depth == 3)
+{
+	debug3 = (move.start == 59 && move.end == 31);
+}
+
+debug = debug4 && debug3;
+
+
+if (debug){
+	curRef.b = curCopy.b.Copy();
+	System.Threading.Thread.Sleep(500);
+}
+
+if (debug)
+{
+	GD.Print(String.Format("\nDEPTH {0}: {1}", depth, g.MoveToString(move)));
+	// GD.Print("4 Alpha Beta: ", alpha, ' ', beta);
+}
+
+
+
+if (debug)
+	GD.Print(String.Format("Depth: {0}\t{1}\tPrev: {2}\t\tNew: {3}", depth, g.MoveToString(move), best.score, moveScore));
+
+
+// GD.Print(String.Format("Depth: {0}   Move: {1} to {2}", depth - 1, movePack.move.start, movePack.move.end));
+
+
+if (debug){
+	curRef.b = curCopy.b.Copy();
+	System.Threading.Thread.Sleep(200);
+}
+
+
+
+if (debug)
+	GD.Print(String.Format("Depth: {3}\tMove: {4}\tAlpha Old: {0}\t\tAlpha New: {1}\t\tBeta: {2}", alpha, moveScore, beta, depth, g.MoveToString(move)));
+if (debug && depth == 3)
+	GD.Print();
+
+
+
+if (debug)
+{
+	GD.Print("Depth ", depth, " ", g.MoveToString(move));
+	GD.Print("PRUNE\n");
+	// best.PrintPrincipal();
+
+}
+ */

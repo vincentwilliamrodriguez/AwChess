@@ -122,9 +122,9 @@ scale = Vector2(1.95, 1.95)
 texture = ExtResource("5_djxg1")
 
 [node name="DebugLabel" type="Label" parent="."]
-offset_left = 1162.0
+offset_left = 1141.0
 offset_top = 347.0
-offset_right = 1323.0
+offset_right = 1302.0
 offset_bottom = 394.0
 text = "Awaw Pogi
 "
