@@ -25,8 +25,8 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		// cur.ImportFromFEN(g.startingPosition);
-		cur.ImportFromFEN("rnbqkbRr/p7/1pppp1p1/8/8/8/PPPPPP2/RNBQKBNR b KQkq - 0 8");
+		cur.ImportFromFEN(g.startingPosition);
+		// cur.ImportFromFEN("rnbqkbRr/p7/1pppp1p1/8/8/8/PPPPPP2/RNBQKBNR b KQkq - 0 8");
 	
 		InitBoard();
 		UpdatePieces();
@@ -49,16 +49,15 @@ public partial class main : Node2D
 
 		// g.PrintMoveList(cur.b.possibleMoves);
 		// g.PrintMoveList(g.OrderMoves(cur.b.possibleMoves, cur));
-
-		GD.Print(cur.GetZobristKey());
 	}
 
 	public override void _Process(double delta) {
 		UpdatePieces();
 		HighlightPossibleMoves();
-		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}", 
+		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}\nZKey: {2}", 
 									 Convert.ToString(cur.b.gameOutcome),
-									 g.staticEvaluation);
+									 g.staticEvaluation,
+									 cur.b.zobristKey);
 		debugLabelNode.Text = g.debugLabel;
 
 		// Random random = new Random();
@@ -74,7 +73,7 @@ public partial class main : Node2D
 			if (!AwChessThread[turn].IsAlive())
 			{
 				curBoardHistory.Add(cur.b.Copy());
-				
+
 				Action botMove = () => {AwChessBot[turn].SearchMove();};
 				AwChessBot[turn].UpdateCopy();
 				AwChessThread[turn].Start(Callable.From(botMove));

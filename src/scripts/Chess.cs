@@ -29,6 +29,7 @@ public struct Board
 	public Move lastMove = new Move(-1, -1, -1);
 	public int gameOutcome = -1; // -1 = ongoing, 0 = white won, 1 = black won, 2 = draw
 	public int zobristKey = 0;
+	public List<int> zobristHistory = new List<int> {};
 
 	public Board() {}
 
@@ -56,6 +57,7 @@ public struct Board
 		clone.lastMove = lastMove;
 		clone.gameOutcome = gameOutcome;
 		clone.zobristKey = zobristKey;
+		clone.zobristHistory = zobristHistory.ToList();
 
 		return clone;
 	}
@@ -146,6 +148,7 @@ public partial class Chess
 
 		/* Zobrist Key Initialization */
 		b.zobristKey = GetZobristKey();
+		b.zobristHistory.Add(b.zobristKey);
 	}
 
 	public void Update()
@@ -190,8 +193,9 @@ public partial class Chess
 
 			bool insufficientMaterial = b.piecesCount.Cast<int>().Sum() == 2;
 			bool fiftyMoveRule = b.halfMoveClock >= 100;
+			bool threeFoldRepetition = (b.zobristHistory.Where(key => key == b.zobristKey).Count()) >= 3;
 
-			if (insufficientMaterial || fiftyMoveRule)
+			if (insufficientMaterial || fiftyMoveRule || threeFoldRepetition)
 			{
 				b.gameOutcome = 2; // draw
 			}
@@ -366,6 +370,9 @@ public partial class Chess
 		b.sideToMove = 1 - b.sideToMove;
 		b.lastMove = move;
 		b.zobristKey ^= g.zobristNumSideToMove;
+
+		/* Adding Zobrist Key to History */
+		b.zobristHistory.Add(b.zobristKey);
 
 		/* Updating Variables */
 		Update();

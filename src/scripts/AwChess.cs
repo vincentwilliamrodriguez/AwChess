@@ -179,7 +179,7 @@ public partial class AwChess : Node
 		}
 
 		alpha = Math.Max(alpha, best.score);
-		if (alpha >= beta || captureMoves.Count == 0)
+		if (alpha >= beta || captureMoves.Count == 0 || curCopy.b.gameOutcome != -1)
 		{
 			best.count.nodes = 1;
 			return best;

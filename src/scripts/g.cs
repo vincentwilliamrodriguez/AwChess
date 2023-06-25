@@ -6,8 +6,8 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {true, false};
-	public static int botSpeed = 1000;
+	public static bool[] isPlayer = new bool[] {false, false};
+	public static int botSpeed = 200;
 	public static int botDepth = 4;
 
 	public static bool isBoardFlipped = isPlayer[1] && !isPlayer[0]; // only flip when black is player but not both
