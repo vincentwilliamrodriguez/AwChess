@@ -6,9 +6,9 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {false, false};
+	public static bool[] isPlayer = new bool[] {true, false};
 	public static int botSpeed = 1000;
-	public static int botDepth = 6;
+	public static int botDepth = 4;
 
 	public static bool isBoardFlipped = isPlayer[1] && !isPlayer[0]; // only flip when black is player but not both
 	public static bool isMovingPiece = false;
@@ -44,12 +44,17 @@ public static partial class g : Object
 	public static ulong testHighlight = 0UL;
 	public static string debugLabel = "";
 	
-	public static Random random = new Random();
 	public static int[] sign = new int[2] {1, -1};
 	public static int[] piecesValue = {0, 900, 300, 300, 500, 100};
 	public static int staticEvaluation = 0;
 	public static int positiveInfinity = 10000000;
 	public static int negativeInfinity = -10000000;
+
+	public static Random random = new Random(31415);
+	public static int[,,] zobristNumsPos = new int[2, 6, 64];
+	public static int zobristNumSideToMove; // only applied when sideToMove is 1 (black)
+	public static int [,] zobristNumsCastling = new int[2, 2];
+	public static int [] zobristNumsEnPassant = new int[8];
 
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{
@@ -73,6 +78,100 @@ public static partial class g : Object
 		{6, -17}, // South South West
 		{7, -10} // South West West
 	};
+	
+	public static void Init() {
+		for (int from = 0; from < 64; from++)
+		{
+			/* Ray Attacks */
+			for (int dir = 0; dir < 8; dir++)
+			{
+				rayAttacks[from, dir] = 0UL;
+				int to = from + dirNums[dir];
+				int toKnight = from + dirNumsKnight[dir];
+				int toPrev = from;
+
+				/* King Attacks */
+				if (WrapCheck(from, dirNums[dir]))
+					kingAttacks[from] |= 1UL << to;
+
+				/* Knight Attacks */
+				if (WrapCheck(from, dirNumsKnight[dir]))
+					knightAttacks[from] |= 1UL << toKnight;
+				
+
+				while (WrapCheck(toPrev, dirNums[dir]))
+				{
+					rayAttacks[from, dir] |= 1UL << to;
+
+					toPrev = to;
+					to += dirNums[dir];
+				}
+			}
+
+			/* Pawn Moves and Attacks */
+			for (int colorN = 0; colorN < 2; colorN++)
+			{
+				/* Pawn Moves */
+				int pawnFile = from % 8;
+				int pawnRank = from / 8;
+				pawnMoves[colorN, from] = 0UL | (1UL << (from + SinglePush(colorN)));
+
+				/* Pawn Attacks */
+				pawnAttacks[colorN, from] = 0UL;
+
+				if (pawnFile != 0) // if not on the A file
+				{
+					pawnAttacks[colorN, from] |= 1UL << (from + SinglePush(colorN) - 1);
+				}
+
+				if (pawnFile != 7) // if not on the H file
+				{
+					pawnAttacks[colorN, from] |= 1UL << (from + SinglePush(colorN) + 1);
+				}
+			}
+		}
+
+		for (int from = 0; from < 64; from++)
+		{
+			for (int to = 0; to < 64; to++)
+			{
+				inBetween[from, to] = 0UL;
+				for (int dir = 0; dir < 8; dir++)
+				{
+					ulong fromRay = rayAttacks[from, dir];
+					if (((fromRay >> to) & 1) == 1) // if 'to' is reached by 'fromRay'
+					{
+						inBetween[from, to] = fromRay ^ rayAttacks[to, dir];
+					}
+				}
+			}
+		}
+
+		/* Zobrist Numbers Initialization */
+
+		for (int fileN = 0; fileN < 8; fileN++)
+		{
+			zobristNumsEnPassant[fileN] = random.Next();
+		}
+
+		zobristNumSideToMove = random.Next();
+
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			for (int pieceN = 0; pieceN < 6; pieceN++)
+			{
+				for (int i = 0; i < 64; i++)
+				{
+					zobristNumsPos[colorN, pieceN, i] = random.Next();
+				}
+			}
+
+			for (int sideN = 0; sideN < 2; sideN++)
+			{
+				zobristNumsCastling[colorN, sideN] = random.Next();
+			}
+		}
+	}
 
 	public static void PrintBitboard(ulong[,] inp) {
 		foreach (var piece in inp) {
@@ -173,109 +272,5 @@ public static partial class g : Object
 		int toRank = (from / 8) + addRank;
 
 		return (toFile >= 0 && toFile < 8 && toRank >= 0 && toRank < 8);
-	}
-
-	public static void Init() {
-		for (int from = 0; from < 64; from++)
-		{
-			/* Ray Attacks */
-			for (int dir = 0; dir < 8; dir++)
-			{
-				rayAttacks[from, dir] = 0UL;
-				int to = from + dirNums[dir];
-				int toKnight = from + dirNumsKnight[dir];
-				int toPrev = from;
-
-				/* King Attacks */
-				if (WrapCheck(from, dirNums[dir]))
-					kingAttacks[from] |= 1UL << to;
-
-				/* Knight Attacks */
-				if (WrapCheck(from, dirNumsKnight[dir]))
-					knightAttacks[from] |= 1UL << toKnight;
-				
-
-				while (WrapCheck(toPrev, dirNums[dir]))
-				{
-					rayAttacks[from, dir] |= 1UL << to;
-
-					toPrev = to;
-					to += dirNums[dir];
-				}
-			}
-
-			/* Pawn Moves and Attacks */
-			for (int colorN = 0; colorN < 2; colorN++)
-			{
-				/* Pawn Moves */
-				int pawnFile = from % 8;
-				int pawnRank = from / 8;
-				pawnMoves[colorN, from] = 0UL | (1UL << (from + SinglePush(colorN)));
-
-				/* Pawn Attacks */
-				pawnAttacks[colorN, from] = 0UL;
-
-				if (pawnFile != 0) // if not on the A file
-				{
-					pawnAttacks[colorN, from] |= 1UL << (from + SinglePush(colorN) - 1);
-				}
-
-				if (pawnFile != 7) // if not on the H file
-				{
-					pawnAttacks[colorN, from] |= 1UL << (from + SinglePush(colorN) + 1);
-				}
-			}
-		}
-
-		for (int from = 0; from < 64; from++)
-		{
-			for (int to = 0; to < 64; to++)
-			{
-				inBetween[from, to] = 0UL;
-				for (int dir = 0; dir < 8; dir++)
-				{
-					ulong fromRay = rayAttacks[from, dir];
-					if (((fromRay >> to) & 1) == 1) // if 'to' is reached by 'fromRay'
-					{
-						inBetween[from, to] = fromRay ^ rayAttacks[to, dir];
-					}
-				}
-			}
-		}
-	}
-
-	/* AwChess Helper Methods */
-	
-	public static List<Move> OrderMoves(List<Move> source, Chess board)
-	{
-		List<int> moveScores = new List<int> {};
-
-		foreach (Move move in source)
-		{
-			int moveScore = 0;
-
-			/* Capture Moves */
-			if (move.capturedPiece != -1)
-			{
-				moveScore += 10 * g.piecesValue[move.capturedPiece]
-								- g.piecesValue[move.pieceN];
-				
-				if (move.end == board.b.lastMove.end) // last moved piece
-				{
-					moveScore += 1001;
-				}
-			}
-
-			/* Promotion Moves */
-			if (move.promotionPiece != -1)
-			{
-				moveScore += g.piecesValue[move.promotionPiece];
-			}
-
-			moveScores.Add(moveScore);
-		}
-
-		List<Move> sortedMoves = source.OrderByDescending(move => moveScores[source.IndexOf(move)]).ToList();
-		return sortedMoves;
 	}
 }

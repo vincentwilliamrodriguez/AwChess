@@ -28,6 +28,7 @@ public struct Board
 	public List<Move> possibleMoves = new List<Move> {};
 	public Move lastMove = new Move(-1, -1, -1);
 	public int gameOutcome = -1; // -1 = ongoing, 0 = white won, 1 = black won, 2 = draw
+	public int zobristKey = 0;
 
 	public Board() {}
 
@@ -54,6 +55,7 @@ public struct Board
 		clone.possibleMovesBB = possibleMovesBB;
 		clone.lastMove = lastMove;
 		clone.gameOutcome = gameOutcome;
+		clone.zobristKey = zobristKey;
 
 		return clone;
 	}
@@ -136,11 +138,14 @@ public partial class Chess
 		/* Halfmove Clock */
 		b.halfMoveClock = Convert.ToInt32(fields[4]);
 
-		/* Fullmove counter */
+		/* Fullmove Counter */
 		b.fullMoveCounter = Convert.ToInt32(fields[5]);
 
-
+		/* Update Variables */
 		Update();
+
+		/* Zobrist Key Initialization */
+		b.zobristKey = GetZobristKey();
 	}
 
 	public void Update()
@@ -244,20 +249,25 @@ public partial class Chess
 		/* Updating Pieces */
 		bool isWhitesTurn = b.sideToMove == 0;
 
-		if (move.capturedPiece != -1)
+		if ((b.occupancy >> endIndex & 1) == 1UL) // if end index has a piece
 		{
-			b.pieces[1 - b.sideToMove, move.capturedPiece] &= ~(1UL << endIndex);
+			b.pieces[1 - b.sideToMove, move.capturedPiece] &= ~(1UL << endIndex); // removes captured enemy piece from board
+			b.zobristKey ^= g.zobristNumsPos[1 - b.sideToMove, move.capturedPiece, endIndex];
 		}
 
 		int startPieceN = move.pieceN;
-		b.pieces[b.sideToMove, startPieceN] &= ~(1UL << startIndex);
-		b.pieces[b.sideToMove, startPieceN] |= 1UL << endIndex;
+		b.pieces[b.sideToMove, startPieceN] &= ~(1UL << startIndex); // removes moving piece from start position
+		b.pieces[b.sideToMove, startPieceN] |= 1UL << endIndex; // places moving piece to end position
+		b.zobristKey ^= g.zobristNumsPos[b.sideToMove, startPieceN, startIndex];
+		b.zobristKey ^= g.zobristNumsPos[b.sideToMove, startPieceN, endIndex];
 
 		/* Enforcing Promotion */
 		if (g.IsPromotion(b.sideToMove, startPieceN, endIndex))
 		{
-			b.pieces[b.sideToMove, 5] &= ~(1UL << endIndex);
-			b.pieces[b.sideToMove, promotionPiece] |= 1UL << endIndex;
+			b.pieces[b.sideToMove, 5] &= ~(1UL << endIndex); // removes pawn from promotion square
+			b.pieces[b.sideToMove, promotionPiece] |= 1UL << endIndex; // places promotion piece to promotion square
+			b.zobristKey ^= g.zobristNumsPos[b.sideToMove, 5, endIndex];
+			b.zobristKey ^= g.zobristNumsPos[b.sideToMove, promotionPiece, endIndex];
 		}
 
 		/* Enforcing Castling */
@@ -267,8 +277,12 @@ public partial class Chess
 			{
 				if (endIndex == g.castlingKingPos[b.sideToMove, sideN]) // if king went queenside or kingside
 				{
-					b.pieces[b.sideToMove, 4] &= ~(1UL << g.castlingRookPosFrom[b.sideToMove, sideN]);
-					b.pieces[b.sideToMove, 4] |= 1UL << g.castlingRookPosTo[b.sideToMove, sideN];
+					int rookFrom = g.castlingRookPosFrom[b.sideToMove, sideN];
+					int rookTo = g.castlingRookPosTo[b.sideToMove, sideN];
+					b.pieces[b.sideToMove, 4] &= ~(1UL << rookFrom); // removes rook from original position
+					b.pieces[b.sideToMove, 4] |= 1UL << rookTo; // places rook to new position
+					b.zobristKey ^= g.zobristNumsPos[b.sideToMove, 4, rookFrom];
+					b.zobristKey ^= g.zobristNumsPos[b.sideToMove, 4, rookTo];
 				}
 			}
 		}
@@ -276,21 +290,31 @@ public partial class Chess
 		/* Updating Castling Rights */
 		if (startPieceN == 0) // if king moved
 		{
-			b.castlingRights[b.sideToMove, 0] = false;
-			b.castlingRights[b.sideToMove, 1] = false;
+			for (int sideN = 0; sideN < 2; sideN++)
+			{
+				if (b.castlingRights[b.sideToMove, sideN]) // only set to false when already true
+				{
+					b.castlingRights[b.sideToMove, sideN] = false;
+					b.zobristKey ^= g.zobristNumsCastling[b.sideToMove, sideN];
+				}
+			}
 		}
 
 		if (startPieceN == 4 || move.capturedPiece == 4) // if rook moved or got captured
 		{
 			for (int sideN = 0; sideN < 2; sideN++)
 			{
-				if (startIndex == g.rookPos[b.sideToMove, sideN]) // if own's rook moved
+				if (startIndex == g.rookPos[b.sideToMove, sideN] && // if own's rook moved
+					b.castlingRights[b.sideToMove, sideN]) // only set to false when already true
 				{
 					b.castlingRights[b.sideToMove, sideN] = false;
+					b.zobristKey ^= g.zobristNumsCastling[b.sideToMove, sideN];
 				}
-				if (endIndex == g.rookPos[1 - b.sideToMove, sideN]) // if enemy's rook got captured
+				if (endIndex == g.rookPos[1 - b.sideToMove, sideN] && // if enemy's rook got captured
+					b.castlingRights[1 - b.sideToMove, sideN]) // only set to false when already true
 				{
 					b.castlingRights[1 - b.sideToMove, sideN] = false;
+					b.zobristKey ^= g.zobristNumsCastling[1 - b.sideToMove, sideN];
 				}
 			}
 		}
@@ -300,10 +324,14 @@ public partial class Chess
 		if (endIndex == b.enPassantSquare && startPieceN == 5)
 		{
 			int targetOfEnPassant = endIndex + g.SinglePush(1 - b.sideToMove);
-			b.pieces[1 - b.sideToMove, 5] &= ~(1UL << targetOfEnPassant);
+			b.pieces[1 - b.sideToMove, 5] &= ~(1UL << targetOfEnPassant); // removes en passant target enemy pawn from board
+			b.zobristKey ^= g.zobristNumsPos[1 - b.sideToMove, 5, targetOfEnPassant];
 		}
 
 		/* Updating En Passant */
+		if (b.enPassantSquare != -1)
+			b.zobristKey ^= g.zobristNumsEnPassant[b.enPassantSquare % 8];
+
 		if (startPieceN == 5 && // if pawn moved
 			((startIndex / 8) == g.DoubleStartRank(b.sideToMove) && 
 			 (endIndex / 8) == g.DoubleEndRank(b.sideToMove))) // if pawn double moved
@@ -314,6 +342,10 @@ public partial class Chess
 		{
 			b.enPassantSquare = -1;
 		}
+
+		if (b.enPassantSquare != -1)
+			b.zobristKey ^= g.zobristNumsEnPassant[b.enPassantSquare % 8];
+
 		
 		/* Updating Clocks */
 		if (move.capturedPiece != -1 || startPieceN == 5)
@@ -333,14 +365,15 @@ public partial class Chess
 		/* Updating Side To Move */
 		b.sideToMove = 1 - b.sideToMove;
 		b.lastMove = move;
+		b.zobristKey ^= g.zobristNumSideToMove;
 
-		/* Updating Functions */
+		/* Updating Variables */
 		Update();
 
 		// GD.Print(String.Format("Castling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", b.sideToMove, b.enPassantSquare, b.halfMoveClock, b.fullMoveCounter, b.castlingRights[0, 0]));
 	}
 
-	public void UnmakeMove(Move move, ref Board bPrev, ref PerftCount count)
+	public void UnmakeMove(Move move, ref Board bPrev)
 	{
 		int startPieceN = move.pieceN;
 		int startIndex = move.start;
@@ -359,7 +392,6 @@ public partial class Chess
 				{
 					b.pieces[b.sideToMove, 4] |= 1UL << g.castlingRookPosFrom[b.sideToMove, sideN];
 					b.pieces[b.sideToMove, 4] &= ~(1UL << g.castlingRookPosTo[b.sideToMove, sideN]);
-					count.castles++;
 				}
 			}
 		}
@@ -369,7 +401,6 @@ public partial class Chess
 		{
 			b.pieces[b.sideToMove, promotionPiece] &= ~(1UL << endIndex);
 			b.pieces[b.sideToMove, 5] |= 1UL << endIndex;
-			count.promotions++;
 		}
 
 		/* Reversing Move */
@@ -383,7 +414,6 @@ public partial class Chess
 			{
 				int targetOfEnPassant = endIndex + g.SinglePush(1 - b.sideToMove);
 				b.pieces[1 - b.sideToMove, 5] |= 1UL << targetOfEnPassant;
-				count.enPassants++;
 			}
 			else
 			{
@@ -788,6 +818,76 @@ public partial class Chess
 		}
 
 		return pinned;
+	}
+
+	public List<Move> GetOrderedMoves()
+	{
+		List<Move> source = b.possibleMoves;
+		List<int> moveScores = new List<int> {};
+
+		foreach (Move move in source)
+		{
+			int moveScore = 0;
+
+			/* Capture Moves */
+			if (move.capturedPiece != -1)
+			{
+				moveScore += 10 * g.piecesValue[move.capturedPiece]
+								- g.piecesValue[move.pieceN];
+				
+				if (move.end == b.lastMove.end) // last moved piece
+				{
+					moveScore += 1001;
+				}
+			}
+
+			/* Promotion Moves */
+			if (move.promotionPiece != -1)
+			{
+				moveScore += g.piecesValue[move.promotionPiece];
+			}
+
+			moveScores.Add(moveScore);
+		}
+
+		List<Move> sortedMoves = source.OrderByDescending(move => moveScores[source.IndexOf(move)]).ToList();
+		return sortedMoves;
+	}
+
+	public int GetZobristKey()
+	{
+		int res = 0;
+
+		if (b.enPassantSquare != -1)
+		{
+			res ^= g.zobristNumsEnPassant[b.enPassantSquare % 8];
+		}
+
+		if (b.sideToMove == 1)
+		{
+			res ^= g.zobristNumSideToMove;
+		}
+
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			for (int pieceN = 0; pieceN < 6; pieceN++)
+			{
+				foreach (int pieceIndex in b.piecesSer[colorN, pieceN])
+				{
+					res ^= g.zobristNumsPos[colorN, pieceN, pieceIndex];
+				}
+			}
+
+			for (int sideN = 0; sideN < 2; sideN++)
+			{
+				if (b.castlingRights[colorN, sideN])
+				{
+					res ^= g.zobristNumsCastling[colorN, sideN];
+				}
+			}
+		}
+
+		return res;
 	}
 
 	public int Evaluate()

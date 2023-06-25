@@ -6,6 +6,7 @@ using System.Linq;
 public partial class main : Node2D
 {
 	public Chess cur;
+	public List<Board> curBoardHistory = new List<Board> {};
 	public AwChess[] AwChessBot = new AwChess[2];
 	public GodotThread[] AwChessThread = new GodotThread[2];
 
@@ -24,8 +25,8 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+		// cur.ImportFromFEN(g.startingPosition);
+		cur.ImportFromFEN("rnbqkbRr/p7/1pppp1p1/8/8/8/PPPPPP2/RNBQKBNR b KQkq - 0 8");
 	
 		InitBoard();
 		UpdatePieces();
@@ -48,6 +49,8 @@ public partial class main : Node2D
 
 		// g.PrintMoveList(cur.b.possibleMoves);
 		// g.PrintMoveList(g.OrderMoves(cur.b.possibleMoves, cur));
+
+		GD.Print(cur.GetZobristKey());
 	}
 
 	public override void _Process(double delta) {
@@ -70,6 +73,8 @@ public partial class main : Node2D
 			/* Not Thinking */
 			if (!AwChessThread[turn].IsAlive())
 			{
+				curBoardHistory.Add(cur.b.Copy());
+				
 				Action botMove = () => {AwChessBot[turn].SearchMove();};
 				AwChessBot[turn].UpdateCopy();
 				AwChessThread[turn].Start(Callable.From(botMove));
@@ -166,6 +171,24 @@ public partial class main : Node2D
 				g.perftSpeed = 50;
 			}
 		}
+
+		if (Input.IsActionJustReleased("undo"))
+		{
+			if (!(AwChessThread[0].IsAlive() || AwChessThread[1].IsAlive()) && curBoardHistory.Any())
+			{
+				Board lastBoard = curBoardHistory.Last(); // retrieves last board state
+				curBoardHistory.RemoveAt(curBoardHistory.Count - 1); // removes said state from history
+
+				cur.UnmakeMove(cur.b.lastMove, ref lastBoard);
+				cur.b = lastBoard.Copy();
+
+				g.isMovingPiece = false;
+				g.selectedPiece = -1; // [piece, index]
+				g.selectedPieceN = -1;
+				g.curHighlightedMoves = 0UL;
+				g.staticEvaluation = cur.Evaluate();
+			}
+		}
 	}
 
 	public void MakePlayerMove(int targetIndex, int promotionPiece = -1)
@@ -181,6 +204,8 @@ public partial class main : Node2D
 		}
 		
 		playerMove.promotionPiece = promotionPiece;
+
+		curBoardHistory.Add(cur.b.Copy());
 		cur.MakeMove(playerMove);
 
 		g.staticEvaluation = cur.Evaluate();

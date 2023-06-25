@@ -84,7 +84,7 @@ public partial class AwChess : Node
 			PerftCount childCount = Perft(depth - 1);
 			count.Add(childCount);
 
-			curCopy.UnmakeMove(move, ref curB, ref count);
+			curCopy.UnmakeMove(move, ref curB);
 			System.Threading.Thread.Sleep(g.perftSpeed);
 
 			if (depth == g.perftDepth)
@@ -108,7 +108,6 @@ public partial class AwChess : Node
 		if (timeDiff > 0)
 			System.Threading.Thread.Sleep(timeDiff);
 
-
 		curRef.MakeMove(best.move);
 
 		GD.Print(String.Format("Bot {2} Eval: {0}\nBest Move: {3}\nTotal Positions: {1}\n", best.score, best.count.nodes, botColor, g.MoveToString(best.move)));
@@ -130,7 +129,7 @@ public partial class AwChess : Node
 		}
 
 
-		List<Move> possibleMoves = g.OrderMoves(curCopy.b.possibleMoves, curCopy);
+		List<Move> possibleMoves = curCopy.GetOrderedMoves();
 		Board curB = curCopy.b.Clone();
 
 		foreach (Move move in possibleMoves)
@@ -148,7 +147,7 @@ public partial class AwChess : Node
 				best.principal = movePack.principal;
 			}
 
-			curCopy.UnmakeMove(move, ref curB, ref best.count);
+			curCopy.UnmakeMove(move, ref curB);
 			
 			alpha = Math.Max(alpha, moveScore);
 			
@@ -186,7 +185,7 @@ public partial class AwChess : Node
 			return best;
 		}
 
-		captureMoves = g.OrderMoves(captureMoves, curCopy);
+		captureMoves = curCopy.GetOrderedMoves();
 		foreach (Move move in captureMoves)
 		{
 			curCopy.MakeMove(move);
@@ -202,7 +201,7 @@ public partial class AwChess : Node
 				best.principal = movePack.principal;
 			}
 
-			curCopy.UnmakeMove(move, ref curB, ref best.count);
+			curCopy.UnmakeMove(move, ref curB);
 
 			alpha = Math.Max(alpha, best.score);
 			if (alpha >= beta)
