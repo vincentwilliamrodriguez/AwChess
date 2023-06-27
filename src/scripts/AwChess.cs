@@ -9,9 +9,9 @@ public partial class AwChess : Node
     public Chess curCopy;
     public Callable mainJoinThread;
     public int botColor;
-	public bool debug = false;
-	public bool debug4;
-	public bool debug3;
+	public int count;
+	public int count2;
+	public Dictionary<ulong, NodeVal> transpositionTable = new Dictionary<ulong, NodeVal> {};
 
     public AwChess(int color, ref Chess source, Callable joinThread)
     {
@@ -99,9 +99,13 @@ public partial class AwChess : Node
 
 	public void SearchMove()
 	{
+		transpositionTable = new Dictionary<ulong, NodeVal> {};
+		count = 0;
+		count2 = 0;
+
 		var watch = System.Diagnostics.Stopwatch.StartNew();
 		
-		MoveScore best = NegaMax(g.botDepth, g.negativeInfinity, g.positiveInfinity);
+		NodeVal best = NegaMax(g.botDepth, g.negativeInfinity, g.positiveInfinity);
 		watch.Stop();
 
 		int timeDiff = g.botSpeed - (int) watch.ElapsedMilliseconds;
@@ -110,41 +114,72 @@ public partial class AwChess : Node
 
 		curRef.MakeMove(best.move);
 
-		GD.Print(String.Format("Bot {2} Eval: {0}\nBest Move: {3}\nTotal Positions: {1}\n", best.score, best.count.nodes, botColor, g.MoveToString(best.move)));
+		GD.Print(String.Format("Bot {2} Eval: {0}\nBest Move: {3}\nTotal Positions: {1}\nTime: {4} seconds", 
+								best.score, 
+								count, 
+								botColor, 
+								g.MoveToString(best.move), 
+								watch.ElapsedMilliseconds / 1000.0));
 		best.PrintPrincipal();
 		GD.Print("\n===============================================================\n");
+
+		GD.Print(transpositionTable.Count, ' ', count2);
 
 		g.staticEvaluation = curRef.Evaluate();
         mainJoinThread.CallDeferred();
 	}
 
-	public MoveScore NegaMax(int depth, int alpha, int beta)
+	public NodeVal NegaMax(int depth, int alpha, int beta)
 	{
-		MoveScore best = new MoveScore(new PerftCount(), new Move(), g.negativeInfinity);
+		count++;
+		int alphaOriginal = alpha;
+		ulong curKey = curCopy.b.zobristKey;
+		NodeVal tTableEntry = TTableLookUp(curKey);
+
+		if (tTableEntry.isValid && tTableEntry.depth >= depth)
+		{
+			count2++;
+			switch (tTableEntry.flag)
+			{
+				case 1: // EXACT
+					return tTableEntry;
+
+				case 2: // LOWERBOUND
+					alpha = Math.Max(alpha, tTableEntry.score);
+					break;
+
+				case 3: // UPPERBOUND
+					beta = Math.Min(beta, tTableEntry.score);
+					break;
+			}
+
+			if (alpha >= beta)
+			{
+				return tTableEntry;
+			}
+		}
 
 		if (depth == 0 || curCopy.b.gameOutcome != -1)
 		{
-			MoveScore qBest = QuiescenceSearch(alpha, beta);
+			count--;
+			NodeVal qBest = QuiescenceSearch(alpha, beta);
 			return qBest;
 		}
 
-
-		List<Move> possibleMoves = curCopy.GetOrderedMoves();
+		NodeVal best = new NodeVal(new PerftCount(), new Move(), g.negativeInfinity);
+		List<Move> possibleMoves = GetOrderedMoves();
 		Board curB = curCopy.b.Clone();
 
 		foreach (Move move in possibleMoves)
 		{
 			curCopy.MakeMove(move);
 			
-			MoveScore movePack = NegaMax(depth - 1, -beta, -alpha);
+			NodeVal movePack = NegaMax(depth - 1, -beta, -alpha);
 			int moveScore = -movePack.score;
-			best.count.Add(movePack.count);
 			
 			if (moveScore > best.score)
 			{
-				best.move = move;
-				best.score = moveScore;
-				best.principal = movePack.principal;
+				best.Adapt(movePack, move);
 			}
 
 			curCopy.UnmakeMove(move, ref curB);
@@ -158,13 +193,35 @@ public partial class AwChess : Node
 		}
 
 		best.AddMoveToPrincipal();
-		best.count.nodes++;
+
+		tTableEntry = best; 
+
+		if (best.score <= alphaOriginal)
+		{
+			tTableEntry.flag = 3; // UPPERBOUND
+		}
+		else if (best.score >= beta)
+		{
+			tTableEntry.flag = 2; // LOWERBOUND
+		}
+		else
+		{
+			tTableEntry.flag = 1; // EXACT
+		}
+
+		tTableEntry.zobristKey = curKey;
+		tTableEntry.depth = depth;
+		tTableEntry.isValid = true;
+		TTableStore(curKey, tTableEntry);
+
 		return best;
 	}
 
-	public MoveScore QuiescenceSearch(int alpha, int beta)
+	public NodeVal QuiescenceSearch(int alpha, int beta)
 	{
-		MoveScore best = new MoveScore(new PerftCount(), new Move(-1, -1, -1), 
+		count++;
+
+		NodeVal best = new NodeVal(new PerftCount(), new Move(-1, -1, -1), 
 									   g.sign[curCopy.b.sideToMove] * (curCopy.Evaluate())); // static evaluation
 		List<Move> possibleMoves = curCopy.b.possibleMoves;
 		List<Move> captureMoves = new List<Move> {};
@@ -181,24 +238,21 @@ public partial class AwChess : Node
 		alpha = Math.Max(alpha, best.score);
 		if (alpha >= beta || captureMoves.Count == 0 || curCopy.b.gameOutcome != -1)
 		{
-			best.count.nodes = 1;
 			return best;
 		}
 
-		captureMoves = curCopy.GetOrderedMoves();
+		captureMoves = GetOrderedMoves();
 		foreach (Move move in captureMoves)
 		{
 			curCopy.MakeMove(move);
 			
-			MoveScore movePack = QuiescenceSearch(-beta, -alpha);
+			NodeVal movePack = QuiescenceSearch(-beta, -alpha);
 			int moveScore = -movePack.score;
-			best.count.Add(movePack.count);
+			movePack.zobristKey = curCopy.b.zobristKey;
 			
 			if (moveScore > best.score)
 			{
-				best.move = move;
-				best.score = moveScore;
-				best.principal = movePack.principal;
+				best.Adapt(movePack, move);
 			}
 
 			curCopy.UnmakeMove(move, ref curB);
@@ -211,8 +265,69 @@ public partial class AwChess : Node
 		}
 
 		best.AddMoveToPrincipal();
-		best.count.nodes++;
 		return best;
+	}
+
+	
+	public List<Move> GetOrderedMoves()
+	{
+		List<Move> source = curCopy.b.possibleMoves;
+		List<int> moveScores = new List<int> {};
+		NodeVal tTableEntry = TTableLookUp(curCopy.b.zobristKey);
+
+		foreach (Move move in source)
+		{
+			int moveScore = 0;
+
+			/* Capture Moves */
+			if (move.capturedPiece != -1)
+			{
+				moveScore += 10 * g.piecesValue[move.capturedPiece]
+								- g.piecesValue[move.pieceN];
+				
+				if (move.end == curCopy.b.lastMove.end) // last moved piece
+				{
+					moveScore += 1001;
+				}
+			}
+
+			/* Promotion Moves */
+			if (move.promotionPiece != -1)
+			{
+				moveScore += g.piecesValue[move.promotionPiece];
+			}
+
+			/* Transposition Table Hash Move */
+			if (tTableEntry.isValid && tTableEntry.move.Equals(move))
+			{
+				moveScore += 15000;
+			}
+
+			moveScores.Add(moveScore);
+		}
+
+		List<Move> sortedMoves = source.OrderByDescending(move => moveScores[source.IndexOf(move)]).ToList();
+		return sortedMoves;
+	}
+
+	public NodeVal TTableLookUp(ulong key)
+	{
+		ulong address = key & ((1UL << 32) - 1);
+		NodeVal node = new NodeVal();
+
+		if (transpositionTable.ContainsKey(address) &&
+			key == transpositionTable[address].zobristKey)
+		{
+			node = transpositionTable[address];
+		}
+		
+		return node;
+	}
+
+	public void TTableStore(ulong key, NodeVal node)
+	{
+		ulong address = key & ((1UL << 32) - 1);
+		transpositionTable[address] = node;
 	}
 }
 
@@ -233,16 +348,18 @@ public struct PerftCount
 	}
 }
 
-public struct MoveScore
+public struct NodeVal
 {
 	public Move move;
 	public int score;
-	public PerftCount count;
 	public List<Move> principal = new List<Move> {};
+	public ulong zobristKey = 0;
+	public int depth = -1;
+	public int flag = 0;
+	public bool isValid = false;
 
-	public MoveScore(PerftCount count, Move move, int score)
+	public NodeVal(PerftCount count, Move move, int score)
 	{
-		this.count = count;
 		this.move = move;
 		this.score = score;
 	}
@@ -259,6 +376,14 @@ public struct MoveScore
 		{
 			GD.Print(g.MoveToString(move));
 		}
+	}
+
+	public void Adapt(NodeVal source, Move prevMove)
+	{
+		move = prevMove;
+		score = -source.score;
+		principal = source.principal;
+		zobristKey = source.zobristKey;
 	}
 }
 

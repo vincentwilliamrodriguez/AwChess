@@ -25,8 +25,8 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("rnbqkbRr/p7/1pppp1p1/8/8/8/PPPPPP2/RNBQKBNR b KQkq - 0 8");
+		// cur.ImportFromFEN(g.startingPosition);
+		cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
 	
 		InitBoard();
 		UpdatePieces();

@@ -28,8 +28,8 @@ public struct Board
 	public List<Move> possibleMoves = new List<Move> {};
 	public Move lastMove = new Move(-1, -1, -1);
 	public int gameOutcome = -1; // -1 = ongoing, 0 = white won, 1 = black won, 2 = draw
-	public int zobristKey = 0;
-	public List<int> zobristHistory = new List<int> {};
+	public ulong zobristKey = 0;
+	public List<ulong> zobristHistory = new List<ulong> {};
 
 	public Board() {}
 
@@ -827,43 +827,9 @@ public partial class Chess
 		return pinned;
 	}
 
-	public List<Move> GetOrderedMoves()
+	public ulong GetZobristKey()
 	{
-		List<Move> source = b.possibleMoves;
-		List<int> moveScores = new List<int> {};
-
-		foreach (Move move in source)
-		{
-			int moveScore = 0;
-
-			/* Capture Moves */
-			if (move.capturedPiece != -1)
-			{
-				moveScore += 10 * g.piecesValue[move.capturedPiece]
-								- g.piecesValue[move.pieceN];
-				
-				if (move.end == b.lastMove.end) // last moved piece
-				{
-					moveScore += 1001;
-				}
-			}
-
-			/* Promotion Moves */
-			if (move.promotionPiece != -1)
-			{
-				moveScore += g.piecesValue[move.promotionPiece];
-			}
-
-			moveScores.Add(moveScore);
-		}
-
-		List<Move> sortedMoves = source.OrderByDescending(move => moveScores[source.IndexOf(move)]).ToList();
-		return sortedMoves;
-	}
-
-	public int GetZobristKey()
-	{
-		int res = 0;
+		ulong res = 0;
 
 		if (b.enPassantSquare != -1)
 		{

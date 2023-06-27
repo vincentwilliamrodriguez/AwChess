@@ -6,9 +6,9 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {false, false};
+	public static bool[] isPlayer = new bool[] {false, true};
 	public static int botSpeed = 200;
-	public static int botDepth = 4;
+	public static int botDepth = 6;
 
 	public static bool isBoardFlipped = isPlayer[1] && !isPlayer[0]; // only flip when black is player but not both
 	public static bool isMovingPiece = false;
@@ -51,10 +51,10 @@ public static partial class g : Object
 	public static int negativeInfinity = -10000000;
 
 	public static Random random = new Random(31415);
-	public static int[,,] zobristNumsPos = new int[2, 6, 64];
-	public static int zobristNumSideToMove; // only applied when sideToMove is 1 (black)
-	public static int [,] zobristNumsCastling = new int[2, 2];
-	public static int [] zobristNumsEnPassant = new int[8];
+	public static ulong[,,] zobristNumsPos = new ulong[2, 6, 64];
+	public static ulong zobristNumSideToMove; // only applied when sideToMove is 1 (black)
+	public static ulong [,] zobristNumsCastling = new ulong[2, 2];
+	public static ulong [] zobristNumsEnPassant = new ulong[8];
 
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{
@@ -151,10 +151,10 @@ public static partial class g : Object
 
 		for (int fileN = 0; fileN < 8; fileN++)
 		{
-			zobristNumsEnPassant[fileN] = random.Next();
+			zobristNumsEnPassant[fileN] = RandomULong();
 		}
 
-		zobristNumSideToMove = random.Next();
+		zobristNumSideToMove = RandomULong();
 
 		for (int colorN = 0; colorN < 2; colorN++)
 		{
@@ -162,13 +162,13 @@ public static partial class g : Object
 			{
 				for (int i = 0; i < 64; i++)
 				{
-					zobristNumsPos[colorN, pieceN, i] = random.Next();
+					zobristNumsPos[colorN, pieceN, i] = RandomULong();
 				}
 			}
 
 			for (int sideN = 0; sideN < 2; sideN++)
 			{
-				zobristNumsCastling[colorN, sideN] = random.Next();
+				zobristNumsCastling[colorN, sideN] = RandomULong();
 			}
 		}
 	}
@@ -272,5 +272,13 @@ public static partial class g : Object
 		int toRank = (from / 8) + addRank;
 
 		return (toFile >= 0 && toFile < 8 && toRank >= 0 && toRank < 8);
+	}
+
+	public static ulong RandomULong()
+	{
+		byte[] buffer = new byte[8];
+		random.NextBytes(buffer);
+
+		return BitConverter.ToUInt64(buffer, 0);
 	}
 }
