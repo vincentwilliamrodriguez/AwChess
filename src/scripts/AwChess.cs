@@ -2,16 +2,23 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Diagnostics;
 
 public partial class AwChess : Node
 {
     public Chess curRef;
     public Chess curCopy;
     public Callable mainJoinThread;
+
     public int botColor;
+	public Dictionary<ulong, NodeVal> transpositionTable = new Dictionary<ulong, NodeVal> {};
+	
+	public int IDdepth;
+	public NodeVal IDbest;
+	public Stopwatch time = new Stopwatch();
+
 	public int count;
 	public int count2;
-	public Dictionary<ulong, NodeVal> transpositionTable = new Dictionary<ulong, NodeVal> {};
 
     public AwChess(int color, ref Chess source, Callable joinThread)
     {
@@ -50,7 +57,7 @@ public partial class AwChess : Node
 	{		
 		System.Threading.Thread.Sleep(2000);
 
-		var watch = System.Diagnostics.Stopwatch.StartNew();
+		var watch = Stopwatch.StartNew();
 
 		GD.Print("Total number of positions: ", Perft(depth).nodes);
 
@@ -98,32 +105,43 @@ public partial class AwChess : Node
 	}
 
 	public void SearchMove()
-	{
+	{;
+		IDbest = new NodeVal(new Move(), g.negativeInfinity);
+		IDdepth = 1;
 		transpositionTable = new Dictionary<ulong, NodeVal> {};
-		count = 0;
-		count2 = 0;
 
-		var watch = System.Diagnostics.Stopwatch.StartNew();
+		time = Stopwatch.StartNew();
 		
-		NodeVal best = NegaMax(g.botDepth, g.negativeInfinity, g.positiveInfinity);
-		watch.Stop();
+		while (time.ElapsedMilliseconds <= g.botMaxID)
+		{
+			UpdateCopy();
+			count = 0;
+			count2 = 0;
 
-		int timeDiff = g.botSpeed - (int) watch.ElapsedMilliseconds;
+			IDbest = NegaMax(IDdepth, g.negativeInfinity, g.positiveInfinity);
+			IDdepth++;
+
+		}
+
+		time.Stop();
+
+		int timeDiff = g.botSpeed - (int) time.ElapsedMilliseconds;
 		if (timeDiff > 0)
 			System.Threading.Thread.Sleep(timeDiff);
 
-		curRef.MakeMove(best.move);
+		curRef.MakeMove(IDbest.move);
 
-		GD.Print(String.Format("Bot {2} Eval: {0}\nBest Move: {3}\nTotal Positions: {1}\nTime: {4} seconds", 
-								best.score, 
+		GD.Print(String.Format("(Bot {2})\nEval: {0}\nBest Move: {3}\nMax Depth: {5}\nTotal Positions: {1}\nTime: {4} seconds", 
+								IDbest.score, 
 								count, 
 								botColor, 
-								g.MoveToString(best.move), 
-								watch.ElapsedMilliseconds / 1000.0));
-		best.PrintPrincipal();
+								g.MoveToString(IDbest.move), 
+								time.ElapsedMilliseconds / 1000.0,
+								IDdepth)
+				);
+		
+		IDbest.PrintPrincipal();
 		GD.Print("\n===============================================================\n");
-
-		GD.Print(transpositionTable.Count, ' ', count2);
 
 		g.staticEvaluation = curRef.Evaluate();
         mainJoinThread.CallDeferred();
@@ -166,7 +184,7 @@ public partial class AwChess : Node
 			return qBest;
 		}
 
-		NodeVal best = new NodeVal(new PerftCount(), new Move(), g.negativeInfinity);
+		NodeVal best = new NodeVal(new Move(), g.negativeInfinity);
 		List<Move> possibleMoves = GetOrderedMoves();
 		Board curB = curCopy.b.Clone();
 
@@ -187,6 +205,11 @@ public partial class AwChess : Node
 			alpha = Math.Max(alpha, moveScore);
 			
 			if (alpha >= beta)
+			{
+				break;
+			}
+
+			if (time.ElapsedMilliseconds > g.botMaxID && depth == IDdepth) // iterative deepening limit when current time exceeds max ID time (on root depth only)
 			{
 				break;
 			}
@@ -221,8 +244,8 @@ public partial class AwChess : Node
 	{
 		count++;
 
-		NodeVal best = new NodeVal(new PerftCount(), new Move(-1, -1, -1), 
-									   g.sign[curCopy.b.sideToMove] * (curCopy.Evaluate())); // static evaluation
+		NodeVal best = new NodeVal(new Move(-1, -1, -1), 
+								   g.sign[curCopy.b.sideToMove] * (curCopy.Evaluate())); // static evaluation
 		List<Move> possibleMoves = curCopy.b.possibleMoves;
 		List<Move> captureMoves = new List<Move> {};
 		Board curB = curCopy.b.Clone();
@@ -300,7 +323,7 @@ public partial class AwChess : Node
 			/* Transposition Table Hash Move */
 			if (tTableEntry.isValid && tTableEntry.move.Equals(move))
 			{
-				moveScore += 15000;
+				moveScore += 30000;
 			}
 
 			moveScores.Add(moveScore);
@@ -358,7 +381,7 @@ public struct NodeVal
 	public int flag = 0;
 	public bool isValid = false;
 
-	public NodeVal(PerftCount count, Move move, int score)
+	public NodeVal(Move move, int score)
 	{
 		this.move = move;
 		this.score = score;
@@ -382,7 +405,9 @@ public struct NodeVal
 	{
 		move = prevMove;
 		score = -source.score;
-		principal = source.principal;
+
+		principal = source.principal.Copy();
+
 		zobristKey = source.zobristKey;
 	}
 }

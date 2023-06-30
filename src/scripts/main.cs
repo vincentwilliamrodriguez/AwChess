@@ -25,8 +25,8 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		// cur.ImportFromFEN(g.startingPosition);
-		cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+		cur.ImportFromFEN(g.startingPosition);
+		// cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
 	
 		InitBoard();
 		UpdatePieces();
@@ -52,18 +52,18 @@ public partial class main : Node2D
 	}
 
 	public override void _Process(double delta) {
+		int turn = cur.b.sideToMove;
+
 		UpdatePieces();
 		HighlightPossibleMoves();
-		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}\nZKey: {2}", 
+		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}\nBot Depth: {2}", 
 									 Convert.ToString(cur.b.gameOutcome),
 									 g.staticEvaluation,
-									 cur.b.zobristKey);
+									 !g.isPlayer[turn] ? AwChessBot[turn].IDdepth : "N/A");
 		debugLabelNode.Text = g.debugLabel;
 
 		// Random random = new Random();
 		HighlightBitboard(g.testHighlight);
-
-		int turn = cur.b.sideToMove;
 
 		if (!g.isPlayer[turn] && 					// AwChess bot's turn
 			!AwChessThread[1 - turn].IsAlive() &&	// Opponent bot not running
@@ -75,7 +75,6 @@ public partial class main : Node2D
 				curBoardHistory.Add(cur.b.Copy());
 
 				Action botMove = () => {AwChessBot[turn].SearchMove();};
-				AwChessBot[turn].UpdateCopy();
 				AwChessThread[turn].Start(Callable.From(botMove));
 			}
 
