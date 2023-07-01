@@ -57,6 +57,12 @@ public static partial class g : Object
 	public static ulong [,] zobristNumsCastling = new ulong[2, 2];
 	public static ulong [] zobristNumsEnPassant = new ulong[8];
 
+	public static double moveSpeed = 0.1;
+	public static int handlePos = -1;
+	public static int handlePieceN = -1;
+	public static int handleColorN = -1;
+	public static Node mainNode;
+
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
 	{
 		{0, 7}, // North West
@@ -281,5 +287,12 @@ public static partial class g : Object
 		random.NextBytes(buffer);
 
 		return BitConverter.ToUInt64(buffer, 0);
+	}
+
+	public static Vector2I IndexToVector(int i)
+	{
+		int x = CanFlip(i % 8);
+		int y = CanFlip(7 - (i / 8));
+		return new Vector2I(x, y);
 	}
 }

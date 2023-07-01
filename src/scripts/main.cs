@@ -14,6 +14,7 @@ public partial class main : Node2D
 	public ColorRect turnIndicator;
 	public Sprite2D promotionBackground;
 	public Label debugLabelNode;
+	public TileMap movingNode;
 	
 	public override void _Ready()
 	{
@@ -21,12 +22,14 @@ public partial class main : Node2D
 		turnIndicator = (ColorRect) GetNode("TurnIndicator");
 		promotionBackground = (Sprite2D) GetNode("PromotionBackground");
 		debugLabelNode = (Label) GetNode("DebugLabel");
+		movingNode = (TileMap) GetNode("Moving");
 		
+		g.mainNode = GetNode(".");
 		g.Init();
 
 		cur = new Chess();
-		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+		// cur.ImportFromFEN(g.startingPosition);
+		cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
 	
 		InitBoard();
 		UpdatePieces();
@@ -205,6 +208,8 @@ public partial class main : Node2D
 
 		curBoardHistory.Add(cur.b.Copy());
 		cur.MakeMove(playerMove);
+		MovingAnimation();
+
 
 		g.staticEvaluation = cur.Evaluate();
 		GD.Print(g.MoveToString(playerMove), '\n');
@@ -236,13 +241,21 @@ public partial class main : Node2D
 				ulong pieceBits = cur.b.pieces[colorN, pieceN];
 
 				for (int i = 0; i < 64; i++) {
-					if (Convert.ToBoolean((pieceBits >> i) & 1UL)) { // checks if pieceBits[i] is 1 or true, then places the piece
-						int x = g.CanFlip(i % 8);
-						int y = g.CanFlip(7 - (i / 8));
-						boardPiecesNode.SetCell(1, 					// 2nd Layer (pieces)
-												  new Vector2I(x, y), 	// Coordinate in the chessboard
-												  2, 					// ID of pieces.png
-												  new Vector2I(pieceN, colorN)); // Atlas coordinates of piece
+					if (Convert.ToBoolean((pieceBits >> i) & 1UL)) // checks if pieceBits[i] is 1 or true, then places the piece
+					{
+						boardPiecesNode.SetCell(1, 								// 2nd Layer (pieces)
+												g.IndexToVector(i), 			// Coordinate in the chessboard
+												2, 								// ID of pieces.png
+												new Vector2I(pieceN, colorN));	// Atlas coordinates of piece
+					}
+
+					/* Moving Animation */
+					if (g.handlePos == i)
+					{
+						boardPiecesNode.SetCell(1, 
+												g.IndexToVector(i), 
+												2, 
+												new Vector2I(g.handlePieceN, g.handleColorN));
 					}
 				}
 			}
@@ -256,9 +269,7 @@ public partial class main : Node2D
 		for (int i = 0; i < 64; i++)
 		{
 			if ((bitboardTemp & 1UL) == 1) {
-				int x = g.CanFlip(i % 8);
-				int y = g.CanFlip(7 - (i / 8));
-				boardPiecesNode.SetCell(2, new Vector2I(x, y), 3, new Vector2I(0, 0));
+				boardPiecesNode.SetCell(2, g.IndexToVector(i), 3, new Vector2I(0, 0));
 			}
 
 			bitboardTemp = bitboardTemp >> 1;
@@ -274,32 +285,24 @@ public partial class main : Node2D
 		{
 			if (i != -1)
 			{
-				int x = g.CanFlip(i % 8);
-				int y = g.CanFlip(7 - (i / 8));
-				boardPiecesNode.SetCell(3, new Vector2I(x, y), 4, new Vector2I(0, 0));
+				boardPiecesNode.SetCell(3, g.IndexToVector(i), 4, new Vector2I(0, 0));
 			}
 		}
 
 		foreach (int i in g.Serialize(silentMoves))
 		{
-			int x = g.CanFlip(i % 8);
-			int y = g.CanFlip(7 - (i / 8));
-			boardPiecesNode.SetCell(3, new Vector2I(x, y), 3, new Vector2I(0, 0));
+			boardPiecesNode.SetCell(3, g.IndexToVector(i), 3, new Vector2I(0, 0));
 		}
 
 		
 		foreach (int i in g.Serialize(captureMoves))
 		{
-			int x = g.CanFlip(i % 8);
-			int y = g.CanFlip(7 - (i / 8));
-			boardPiecesNode.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
+			boardPiecesNode.SetCell(3, g.IndexToVector(i), 5, new Vector2I(0, 0));
 		}
 
 		if (cur.b.isInCheck)
 		{
-			int x = g.CanFlip(cur.b.kingPos % 8);
-			int y = g.CanFlip(7 - (cur.b.kingPos / 8));
-			boardPiecesNode.SetCell(3, new Vector2I(x, y), 5, new Vector2I(0, 0));
+			boardPiecesNode.SetCell(3, g.IndexToVector(cur.b.kingPos), 5, new Vector2I(0, 0));
 		}
 	}
 
@@ -318,6 +321,37 @@ public partial class main : Node2D
 			boardPiecesNode.ClearLayer(4);
 			promotionBackground.Hide();
 		}
+	}
+
+	public void MovingAnimation()
+	{
+		Move move = cur.b.lastMove;
+		int colorN = 1 - cur.b.sideToMove;
+
+		Tween moveTween = GetTree().CreateTween();
+		Action resetHandle = () => 
+		{
+			g.handlePos = -1;
+			g.handlePieceN = -1;
+			g.handleColorN = -1;
+			UpdatePieces();
+			movingNode.Clear();
+			movingNode.Position = new Vector2(0, 0);
+		};
+
+		g.handlePos = move.end;
+		g.handlePieceN = move.capturedPiece;
+		g.handleColorN = 1 - colorN;
+
+		Vector2I startVector = g.IndexToVector(move.start);
+		Vector2I endVector = g.IndexToVector(move.end);
+		Vector2 diff = (Vector2) (133 * (endVector - startVector));
+		double speed = g.moveSpeed * diff.Length() / 133.0;
+
+		movingNode.SetCell(0, startVector, 0, new Vector2I(move.pieceN, colorN));
+
+		moveTween.TweenProperty(movingNode, "position", diff, speed).SetTrans(Tween.TransitionType.Sine);
+		moveTween.TweenCallback(Callable.From(resetHandle));
 	}
 
 	public void ActivateAwChessPerft(int color)

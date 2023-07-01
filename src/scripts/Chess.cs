@@ -70,6 +70,7 @@ public struct Move
 	public int end = -1;
 	public int promotionPiece = -1;
 	public int capturedPiece = -1;
+	public bool isEnPassant = false;
 
 	public Move(int pieceN = -1, int start = -1, int end = -1, int promotionPiece = -1, int capturedPiece = -1)
 	{
@@ -325,7 +326,7 @@ public partial class Chess
 		
 		
 		/* Enforcing En Passant */
-		if (endIndex == b.enPassantSquare && startPieceN == 5)
+		if (move.isEnPassant)
 		{
 			int targetOfEnPassant = endIndex + g.SinglePush(1 - b.sideToMove);
 			b.pieces[1 - b.sideToMove, 5] &= ~(1UL << targetOfEnPassant); // removes en passant target enemy pawn from board
@@ -475,19 +476,21 @@ public partial class Chess
 				foreach (var endIndex in g.Serialize(pieceType[piece]))
 				{
 					int capturedPiece = FindPieceN(endIndex); // -1 if not capture, pieceN if capture
-
-					if (pieceN == 5 && endIndex == b.enPassantSquare) // if en passant capture
-					{
-						capturedPiece = 5;
-					}
-
 					int[] promotionPieces = g.IsPromotion(b.sideToMove, pieceN, endIndex) ?
 									g.promotionPieces : // if move is promoting
 									new int[] {-1}; // if move is not promoting
 
 					foreach (int promotionPiece in promotionPieces)
 					{
-						b.possibleMoves.Add(new Move(pieceN, piece, endIndex, promotionPiece, capturedPiece));
+						Move move = new Move(pieceN, piece, endIndex, promotionPiece, capturedPiece);
+
+						if (pieceN == 5 && endIndex == b.enPassantSquare) // if en passant capture
+						{
+							capturedPiece = 5;
+							move.isEnPassant = true;
+						}
+
+						b.possibleMoves.Add(move);
 					}
 				}
 			}

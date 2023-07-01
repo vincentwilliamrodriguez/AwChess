@@ -125,11 +125,12 @@ public partial class AwChess : Node
 
 		time.Stop();
 
-		int timeDiff = g.botSpeed - (int) time.ElapsedMilliseconds;
-		if (timeDiff > 0)
-			System.Threading.Thread.Sleep(timeDiff);
+		// int timeDiff = g.botSpeed - (int) time.ElapsedMilliseconds;
+		// if (timeDiff > 0)
+		// 	System.Threading.Thread.Sleep(timeDiff);
 
 		curRef.MakeMove(IDbest.move);
+		g.mainNode.CallDeferred("MovingAnimation");
 
 		GD.Print(String.Format("(Bot {2})\nEval: {0}\nBest Move: {3}\nMax Depth: {5}\nTotal Positions: {1}\nTime: {4} seconds", 
 								IDbest.score, 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://wtlwn2roashj"]
+[gd_scene load_steps=18 format=3 uid="uid://wtlwn2roashj"]
 
 [ext_resource type="Texture2D" uid="uid://vbfddu354mps" path="res://src/assets/light.png" id="1_7jydu"]
 [ext_resource type="Script" path="res://src/scripts/main.cs" id="1_d4knv"]
@@ -51,12 +51,16 @@ texture_region_size = Vector2i(133, 133)
 
 [sub_resource type="TileSet" id="TileSet_fgwq3"]
 tile_size = Vector2i(133, 133)
+sources/2 = SubResource("TileSetAtlasSource_gygfc")
+sources/5 = SubResource("TileSetAtlasSource_b3oqn")
+sources/4 = SubResource("TileSetAtlasSource_itrsk")
+sources/3 = SubResource("TileSetAtlasSource_lfubt")
 sources/0 = SubResource("TileSetAtlasSource_38rdy")
 sources/1 = SubResource("TileSetAtlasSource_kp15v")
-sources/2 = SubResource("TileSetAtlasSource_gygfc")
-sources/3 = SubResource("TileSetAtlasSource_lfubt")
-sources/4 = SubResource("TileSetAtlasSource_itrsk")
-sources/5 = SubResource("TileSetAtlasSource_b3oqn")
+
+[sub_resource type="TileSet" id="TileSet_wn031"]
+tile_size = Vector2i(133, 133)
+sources/0 = SubResource("TileSetAtlasSource_gygfc")
 
 [sub_resource type="SystemFont" id="SystemFont_68ufa"]
 
@@ -100,6 +104,12 @@ layer_4/y_sort_enabled = false
 layer_4/y_sort_origin = 0
 layer_4/z_index = 1
 layer_4/tile_data = PackedInt32Array()
+
+[node name="Moving" type="TileMap" parent="."]
+tile_set = SubResource("TileSet_wn031")
+format = 2
+layer_0/name = "pieces"
+layer_0/z_index = 1
 
 [node name="TurnIndicator" type="ColorRect" parent="."]
 modulate = Color(1, 1, 1, 0.490196)
