@@ -28,8 +28,8 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		// cur.ImportFromFEN(g.startingPosition);
-		cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+		cur.ImportFromFEN(g.startingPosition);
+		// cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
 	
 		InitBoard();
 		UpdatePieces();
@@ -59,10 +59,12 @@ public partial class main : Node2D
 
 		UpdatePieces();
 		HighlightPossibleMoves();
-		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}\nBot Depth: {2}", 
+		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}\nBot Depth: {2}\nTime: {3} s\nCount: {4}", 
 									 Convert.ToString(cur.b.gameOutcome),
 									 g.staticEvaluation,
-									 !g.isPlayer[turn] ? AwChessBot[turn].IDdepth : "N/A");
+									 !g.isPlayer[turn] ? AwChessBot[turn].IDdepth : "N/A",
+									 AwChessBot[turn].time.ElapsedMilliseconds / 1000.0,
+									 AwChessBot[turn].count);
 		debugLabelNode.Text = g.debugLabel;
 
 		// Random random = new Random();

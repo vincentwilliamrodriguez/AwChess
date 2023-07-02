@@ -111,9 +111,11 @@ public partial class AwChess : Node
 		transpositionTable = new Dictionary<ulong, NodeVal> {};
 
 		time = Stopwatch.StartNew();
+		Board curRefOrig = curRef.b.Copy();
 		
 		while (time.ElapsedMilliseconds <= g.botMaxID)
 		{
+			curRef.b = curRefOrig;
 			UpdateCopy();
 			count = 0;
 			count2 = 0;
@@ -181,7 +183,13 @@ public partial class AwChess : Node
 		if (depth == 0 || curCopy.b.gameOutcome != -1)
 		{
 			count--;
+			// curRef.b = curCopy.b.Copy();
+			// System.Threading.Thread.Sleep(100);
+
 			NodeVal qBest = QuiescenceSearch(alpha, beta);
+
+			// curRef.b = curCopy.b.Copy();
+			// System.Threading.Thread.Sleep(100);
 			return qBest;
 		}
 
@@ -191,7 +199,17 @@ public partial class AwChess : Node
 
 		foreach (Move move in possibleMoves)
 		{
+			// if (move.capturedPiece != -1 && move.start == 47)
+			// {
+			// 	System.Threading.Thread.Sleep(1000);
+			// }
+
 			curCopy.MakeMove(move);
+			// curRef.b = curCopy.b.Copy();
+			// if (move.capturedPiece != -1 && move.start == 47)
+			// {
+			// 	System.Threading.Thread.Sleep(1000);
+			// }
 			
 			NodeVal movePack = NegaMax(depth - 1, -beta, -alpha);
 			int moveScore = -movePack.score;
@@ -210,7 +228,8 @@ public partial class AwChess : Node
 				break;
 			}
 
-			if (time.ElapsedMilliseconds > g.botMaxID && depth == IDdepth) // iterative deepening limit when current time exceeds max ID time (on root depth only)
+			if (time.ElapsedMilliseconds > g.botMaxID && 
+				depth == IDdepth) // iterative deepening limit when current time exceeds max ID time (on root depth only)
 			{
 				break;
 			}
@@ -247,7 +266,7 @@ public partial class AwChess : Node
 
 		NodeVal best = new NodeVal(new Move(-1, -1, -1), 
 								   g.sign[curCopy.b.sideToMove] * (curCopy.Evaluate())); // static evaluation
-		List<Move> possibleMoves = curCopy.b.possibleMoves;
+		List<Move> possibleMoves = GetOrderedMoves();
 		List<Move> captureMoves = new List<Move> {};
 		Board curB = curCopy.b.Clone();
 
@@ -265,7 +284,6 @@ public partial class AwChess : Node
 			return best;
 		}
 
-		captureMoves = GetOrderedMoves();
 		foreach (Move move in captureMoves)
 		{
 			curCopy.MakeMove(move);

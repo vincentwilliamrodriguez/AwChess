@@ -866,7 +866,7 @@ public partial class Chess
 		return res;
 	}
 
-	public int Evaluate()
+	public int Evaluate() // REMINDER: Evaluate() is from an objective point of view of the two players, b.sideToMove cannot be used here
 	{
 		/* Draw */
 		if (b.gameOutcome == 2)
@@ -880,18 +880,92 @@ public partial class Chess
 			return g.sign[b.gameOutcome] * 32000;
 		}
 
-		/* Material Value */
+		
 		int materialValue = 0;
+		int mobilityScore = 0;
+		int placementScore = 0;
 
+		
 		for (int colorN = 0; colorN < 2; colorN++)
 		{
+			int sign = g.sign[colorN];
+
+			/* Material Value */
 			for (int pieceN = 0; pieceN < 6; pieceN++)
 			{
-				materialValue += g.sign[colorN] * g.piecesValue[pieceN] * b.piecesCount[colorN, pieceN];
+				materialValue += sign * g.piecesValue[pieceN] * b.piecesCount[colorN, pieceN];
+
+				/* Placement Score */
+				foreach (int index in b.piecesSer[colorN, pieceN])
+				{
+					int sq = (colorN == 0) ? index : 63 - index;
+					placementScore += sign * g.pieceSquareTables[pieceN, sq];
+				}
+			}
+
+			/* Mobility */
+			mobilityScore += sign * CalculateMobility(colorN);
+		}
+
+		return materialValue + 10 * mobilityScore + placementScore / 10;
+	}
+
+	public int CalculateMobility(int colorN)
+	{
+		int mobilityScore = 0;
+
+		for (int pieceN = 0; pieceN < 6; pieceN++)
+		{
+			foreach (int index in b.piecesSer[colorN, pieceN])
+			{
+				ulong pseudoLegalMoves = 0UL;
+
+				switch (pieceN)
+				{
+					// KING
+					case 0:
+						pseudoLegalMoves |= g.kingAttacks[index];
+						break;
+					
+					// QUEEN
+					case 1:
+						pseudoLegalMoves |= GenerateRookAttacks(index) | GenerateBishopAttacks(index);
+						break;
+					
+					// BISHOP
+					case 2:
+						pseudoLegalMoves |= GenerateBishopAttacks(index);
+						break;
+					
+					// KNIGHT
+					case 3:
+						pseudoLegalMoves |= g.knightAttacks[index];
+						break;
+					
+					// ROOK
+					case 4:
+						pseudoLegalMoves |= GenerateRookAttacks(index);
+						break;
+					
+					// PAWN
+					case 5:
+						pseudoLegalMoves |= g.pawnMoves[colorN, index] & ~b.occupancy; // single push
+
+						if ((index / 8) == g.DoubleStartRank(colorN) // if pawn is in home rank
+							&& pseudoLegalMoves != 0) // if pawn move is not blocked in the single push
+						{
+							pseudoLegalMoves |= 1UL << (index + 2 * g.SinglePush(colorN)) & ~b.occupancy; // double push
+						}
+
+						pseudoLegalMoves |= g.pawnAttacks[colorN, index] & b.occupancyByColor[1 - colorN];
+						break;
+				}
+
+				pseudoLegalMoves &= ~b.occupancyByColor[colorN];
+				mobilityScore += g.Serialize(pseudoLegalMoves).Count;
 			}
 		}
 
-
-		return materialValue;
+		return mobilityScore;
 	}
 }
