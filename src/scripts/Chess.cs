@@ -866,7 +866,7 @@ public partial class Chess
 		return res;
 	}
 
-	public int Evaluate() // REMINDER: Evaluate() is from an objective point of view of the two players, b.sideToMove cannot be used here
+	public int Evaluate(bool debug = false) // REMINDER: Evaluate() is from an objective point of view of the two players, b.sideToMove cannot be used here
 	{
 		/* Draw */
 		if (b.gameOutcome == 2)
@@ -898,7 +898,9 @@ public partial class Chess
 				/* Placement Score */
 				foreach (int index in b.piecesSer[colorN, pieceN])
 				{
-					int sq = (colorN == 0) ? index : 63 - index;
+					int file = index % 8;
+					int rank = (colorN == 0) ? (index / 8) : (7 - index / 8); // flip rank if black
+					int sq =  g.ToIndex(file, rank);
 					placementScore += sign * g.pieceSquareTables[pieceN, sq];
 				}
 			}
@@ -907,13 +909,40 @@ public partial class Chess
 			mobilityScore += sign * CalculateMobility(colorN);
 		}
 
-		return materialValue + 10 * mobilityScore + placementScore / 10;
+		if (debug)
+		{
+			GD.Print(CalculateMobility(b.sideToMove));
+			GD.Print(CalculateMobility(1 - b.sideToMove));
+			GD.Print(String.Format("Material: {0}\nMobility: {1}\nPlacement: {2}\n", materialValue, mobilityScore, placementScore));
+		}
+
+		return materialValue + 2 * mobilityScore + placementScore;
 	}
 
 	public int CalculateMobility(int colorN)
 	{
 		int mobilityScore = 0;
+		bool isOpponent = (colorN != b.sideToMove);
 
+		if (isOpponent)
+		{
+			b.sideToMove = 1 - b.sideToMove;
+			Update();
+		}
+
+		foreach (Move move in b.possibleMoves)
+		{
+			mobilityScore += 1;
+		}
+
+		if (isOpponent)
+		{
+			b.sideToMove = 1 - b.sideToMove;
+			Update();
+		}
+
+
+		/* 
 		for (int pieceN = 0; pieceN < 6; pieceN++)
 		{
 			foreach (int index in b.piecesSer[colorN, pieceN])
@@ -965,6 +994,7 @@ public partial class Chess
 				mobilityScore += g.Serialize(pseudoLegalMoves).Count;
 			}
 		}
+ 		*/
 
 		return mobilityScore;
 	}

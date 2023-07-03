@@ -11,6 +11,7 @@ public partial class AwChess : Node
     public Callable mainJoinThread;
 
     public int botColor;
+	public int botEval;
 	public Dictionary<ulong, NodeVal> transpositionTable = new Dictionary<ulong, NodeVal> {};
 	
 	public int IDdepth;
@@ -123,6 +124,7 @@ public partial class AwChess : Node
 			IDbest = NegaMax(IDdepth, g.negativeInfinity, g.positiveInfinity);
 			IDdepth++;
 
+			// GD.Print("Awaw ", IDdepth, " ", g.MoveToString(IDbest.move));
 		}
 
 		time.Stop();
@@ -147,6 +149,7 @@ public partial class AwChess : Node
 		GD.Print("\n===============================================================\n");
 
 		g.staticEvaluation = curRef.Evaluate();
+		botEval = IDbest.score;
         mainJoinThread.CallDeferred();
 	}
 
@@ -281,6 +284,7 @@ public partial class AwChess : Node
 		alpha = Math.Max(alpha, best.score);
 		if (alpha >= beta || captureMoves.Count == 0 || curCopy.b.gameOutcome != -1)
 		{
+			best.AddMoveToPrincipal();
 			return best;
 		}
 

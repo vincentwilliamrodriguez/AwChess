@@ -61,7 +61,7 @@ public partial class main : Node2D
 		HighlightPossibleMoves();
 		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}\nBot Depth: {2}\nTime: {3} s\nCount: {4}", 
 									 Convert.ToString(cur.b.gameOutcome),
-									 g.staticEvaluation,
+									 AwChessBot[turn].botEval * g.sign[turn],
 									 !g.isPlayer[turn] ? AwChessBot[turn].IDdepth : "N/A",
 									 AwChessBot[turn].time.ElapsedMilliseconds / 1000.0,
 									 AwChessBot[turn].count);
