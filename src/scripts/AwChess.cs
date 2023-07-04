@@ -151,7 +151,7 @@ public partial class AwChess : Node
 		IDbest.PrintPrincipal();
 		GD.Print("\n===============================================================\n");
 
-		g.staticEvaluation = curRef.Evaluate();
+		g.staticEvaluation = curRef.Evaluate(true);
 		botEval = IDbest.score;
         mainJoinThread.CallDeferred();
 	}

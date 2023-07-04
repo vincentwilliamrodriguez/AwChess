@@ -890,10 +890,62 @@ public partial class Chess
 		{
 			int sign = g.sign[colorN];
 
-			/* Material Value */
+			bool isOpponent = (colorN != b.sideToMove);
+			if (isOpponent)
+			{
+				b.sideToMove = 1 - b.sideToMove;
+				Update();
+			}
+
+
 			for (int pieceN = 0; pieceN < 6; pieceN++)
 			{
-				materialValue += sign * g.piecesValue[pieceN] * b.piecesCount[colorN, pieceN];
+				/* Material Value */
+				int pieceBonus = 0;
+				int pieceCount = b.piecesCount[colorN, pieceN];
+				materialValue += sign * g.piecesValue[pieceN] * pieceCount;
+
+				switch (pieceN)
+				{
+					/* BISHOP */
+					case 2:
+						if (b.piecesCount[colorN, 2] == 2)
+						{
+							pieceBonus += 50; // bishop pair bonus
+						}
+						break;
+					
+					/* KNIGHT */
+					case 3:
+						pieceBonus -= 4 * (8 - b.piecesCount[colorN, 5]) * pieceCount; // decreasing knight value as pawns decrease
+						break;
+
+					/* ROOK */
+					case 4:
+						pieceBonus += 7 * (8 - b.piecesCount[colorN, 5]) * pieceCount; // increasing rook value as pawns decrease
+						break;
+					
+					/* PAWN */
+					case 5:
+						ulong pawnMap = b.pieces[colorN, pieceN];
+						ulong enemyPawnMap = b.pieces[1 - colorN, pieceN];
+						foreach (int pawnIndex in b.piecesSer[colorN, pieceN])
+						{
+							ulong blockingPawns = pawnMap & g.pawnAhead[colorN, pawnIndex];
+							pieceBonus -= 35 * g.Serialize(blockingPawns).Count; // decreases pawn value if blocked
+
+							ulong passedPawnObstacles = (pawnMap | enemyPawnMap) & g.passedPawnAhead[colorN, pawnIndex];
+							if (passedPawnObstacles == 0UL)
+							{
+								int distanceFromHome = Math.Abs((pawnIndex / 8) - g.DoubleStartRank(colorN)) + 1;
+								pieceBonus += 30 * distanceFromHome; // increases passed pawn value as rank increases
+							}
+						}
+						
+						break;
+				}
+
+				materialValue += sign * pieceBonus;
 
 				/* Placement Score */
 				foreach (int index in b.piecesSer[colorN, pieceN])
@@ -907,13 +959,13 @@ public partial class Chess
 
 			/* Mobility */
 			mobilityScore += sign * CalculateMobility(colorN);
-		}
 
-		if (debug)
-		{
-			GD.Print(CalculateMobility(b.sideToMove));
-			GD.Print(CalculateMobility(1 - b.sideToMove));
-			GD.Print(String.Format("Material: {0}\nMobility: {1}\nPlacement: {2}\n", materialValue, mobilityScore, placementScore));
+
+			if (isOpponent)
+			{
+				b.sideToMove = 1 - b.sideToMove;
+				Update();
+			}
 		}
 
 		return materialValue + 2 * mobilityScore + placementScore;
@@ -922,79 +974,11 @@ public partial class Chess
 	public int CalculateMobility(int colorN)
 	{
 		int mobilityScore = 0;
-		bool isOpponent = (colorN != b.sideToMove);
-
-		if (isOpponent)
-		{
-			b.sideToMove = 1 - b.sideToMove;
-			Update();
-		}
 
 		foreach (Move move in b.possibleMoves)
 		{
 			mobilityScore += 1;
 		}
-
-		if (isOpponent)
-		{
-			b.sideToMove = 1 - b.sideToMove;
-			Update();
-		}
-
-
-		/* 
-		for (int pieceN = 0; pieceN < 6; pieceN++)
-		{
-			foreach (int index in b.piecesSer[colorN, pieceN])
-			{
-				ulong pseudoLegalMoves = 0UL;
-
-				switch (pieceN)
-				{
-					// KING
-					case 0:
-						pseudoLegalMoves |= g.kingAttacks[index];
-						break;
-					
-					// QUEEN
-					case 1:
-						pseudoLegalMoves |= GenerateRookAttacks(index) | GenerateBishopAttacks(index);
-						break;
-					
-					// BISHOP
-					case 2:
-						pseudoLegalMoves |= GenerateBishopAttacks(index);
-						break;
-					
-					// KNIGHT
-					case 3:
-						pseudoLegalMoves |= g.knightAttacks[index];
-						break;
-					
-					// ROOK
-					case 4:
-						pseudoLegalMoves |= GenerateRookAttacks(index);
-						break;
-					
-					// PAWN
-					case 5:
-						pseudoLegalMoves |= g.pawnMoves[colorN, index] & ~b.occupancy; // single push
-
-						if ((index / 8) == g.DoubleStartRank(colorN) // if pawn is in home rank
-							&& pseudoLegalMoves != 0) // if pawn move is not blocked in the single push
-						{
-							pseudoLegalMoves |= 1UL << (index + 2 * g.SinglePush(colorN)) & ~b.occupancy; // double push
-						}
-
-						pseudoLegalMoves |= g.pawnAttacks[colorN, index] & b.occupancyByColor[1 - colorN];
-						break;
-				}
-
-				pseudoLegalMoves &= ~b.occupancyByColor[colorN];
-				mobilityScore += g.Serialize(pseudoLegalMoves).Count;
-			}
-		}
- 		*/
 
 		return mobilityScore;
 	}

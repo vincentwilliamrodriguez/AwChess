@@ -26,6 +26,8 @@ public static partial class g : Object
 	public static ulong[] knightAttacks = new ulong[64]; // dimension is square
 	public static ulong[,] pawnMoves = new ulong[2, 64]; // dimensions are color and square
 	public static ulong[,] pawnAttacks = new ulong[2, 64]; // dimensions are color and square
+	public static ulong [,] pawnAhead = new ulong[2, 64]; // dimensions are color and square
+	public static ulong [,] passedPawnAhead = new ulong[2, 64]; // dimensions are color and square
 
 	public static ulong[,] castlingMasks = new ulong[2, 2] {{0xE, 0x60}, 
 															{0xE00000000000000, 0x6000000000000000}};
@@ -165,7 +167,7 @@ public static partial class g : Object
 				if (WrapCheck(from, dirNumsKnight[dir]))
 					knightAttacks[from] |= 1UL << toKnight;
 				
-
+				/* Sliding Attacks */
 				while (WrapCheck(toPrev, dirNums[dir]))
 				{
 					rayAttacks[from, dir] |= 1UL << to;
@@ -174,6 +176,7 @@ public static partial class g : Object
 					to += dirNums[dir];
 				}
 			}
+
 
 			/* Pawn Moves and Attacks */
 			for (int colorN = 0; colorN < 2; colorN++)
@@ -195,9 +198,30 @@ public static partial class g : Object
 				{
 					pawnAttacks[colorN, from] |= 1UL << (from + SinglePush(colorN) + 1);
 				}
+
+				/* Squares Ahead of a Pawn */
+				pawnAhead[colorN, from] = rayAttacks[from, (colorN == 0) ? 1 : 5];
 			}
 		}
+		
+		/* Squares Ahead of a Passed Pawn */
+		for (int from = 0; from < 64; from++)
+		{
+			for (int colorN = 0; colorN < 2; colorN++)
+			{
+				passedPawnAhead[colorN, from] = pawnAhead[colorN, from];
 
+				foreach (int dir in new int[] {3, 7}) // side direction
+				{
+					if (WrapCheck(from, dirNums[dir]))
+					{
+						passedPawnAhead[colorN, from] |= pawnAhead[colorN, from + dirNums[dir]];
+					}
+				}
+			}
+		}			
+
+		/* In-between Lookup */
 		for (int from = 0; from < 64; from++)
 		{
 			for (int to = 0; to < 64; to++)

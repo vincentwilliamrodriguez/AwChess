@@ -29,12 +29,12 @@ public partial class main : Node2D
 
 		cur = new Chess();
 		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+		// cur.ImportFromFEN("1r4k1/3p4/8/8/8/2NPPP2/2PPPPP1/3R2K1 w - - 0 1");
 	
 		InitBoard();
 		g.UpdatePiecesDisplay(cur.b);
 		UpdatePieces();
-		g.staticEvaluation = cur.Evaluate();
+		g.staticEvaluation = cur.Evaluate(true);
 
 		/* AwChess Bot Generation */
 		for (int colorN = 0; colorN < 2; colorN++)
@@ -57,12 +57,13 @@ public partial class main : Node2D
 
 	public override void _Process(double delta) {
 		int turn = cur.b.sideToMove;
+		int botIndex = !g.isPlayer[turn] ? turn : 1 - turn;
 
 		UpdatePieces();
 		HighlightPossibleMoves();
 		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}\nBot Depth: {2}\nTime: {3} s\nCount: {4}", 
 									 Convert.ToString(cur.b.gameOutcome),
-									 AwChessBot[turn].botEval * g.sign[turn],
+									 AwChessBot[botIndex].botEval * g.sign[botIndex],
 									 !g.isPlayer[turn] ? AwChessBot[turn].IDdepth : "N/A",
 									 AwChessBot[turn].time.ElapsedMilliseconds / 1000.0,
 									 AwChessBot[turn].count);
@@ -190,7 +191,7 @@ public partial class main : Node2D
 				g.selectedPiece = -1; // [piece, index]
 				g.selectedPieceN = -1;
 				g.curHighlightedMoves = 0UL;
-				g.staticEvaluation = cur.Evaluate();
+				g.staticEvaluation = cur.Evaluate(true);
 			}
 		}
 	}
@@ -216,7 +217,7 @@ public partial class main : Node2D
 		MovingAnimation();
 
 
-		g.staticEvaluation = cur.Evaluate();
+		g.staticEvaluation = cur.Evaluate(true);
 		GD.Print(g.MoveToString(playerMove), '\n');
 	}
 
