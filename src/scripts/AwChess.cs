@@ -110,6 +110,8 @@ public partial class AwChess : Node
 		IDbest = new NodeVal(new Move(), g.negativeInfinity);
 		IDdepth = 1;
 		transpositionTable = new Dictionary<ulong, NodeVal> {};
+		count = 0;
+		count2 = 0;
 
 		time = Stopwatch.StartNew();
 		Board curRefOrig = curRef.b.Copy();
@@ -118,8 +120,8 @@ public partial class AwChess : Node
 		{
 			curRef.b = curRefOrig;
 			UpdateCopy();
-			count = 0;
-			count2 = 0;
+			// count = 0;
+			// count2 = 0;
 
 			IDbest = NegaMax(IDdepth, g.negativeInfinity, g.positiveInfinity);
 			IDdepth++;
@@ -134,6 +136,7 @@ public partial class AwChess : Node
 		// 	System.Threading.Thread.Sleep(timeDiff);
 
 		curRef.MakeMove(IDbest.move);
+		g.UpdatePiecesDisplay(curRef.b, IDbest.move, botColor);
 		g.mainNode.CallDeferred("MovingAnimation");
 
 		GD.Print(String.Format("(Bot {2})\nEval: {0}\nBest Move: {3}\nMax Depth: {5}\nTotal Positions: {1}\nTime: {4} seconds", 

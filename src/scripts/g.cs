@@ -6,7 +6,7 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {true, false};
+	public static bool[] isPlayer = new bool[] {false, false};
 	public static int botSpeed = 200;
 	public static int botDepth = 4;
 	public static int botMaxID = 2000;
@@ -58,9 +58,7 @@ public static partial class g : Object
 	public static ulong [] zobristNumsEnPassant = new ulong[8];
 
 	public static double moveSpeed = 0.1;
-	public static int handlePos = -1;
-	public static int handlePieceN = -1;
-	public static int handleColorN = -1;
+	public static ulong[,] piecesDisplay = new ulong[2, 6];
 	public static Node mainNode;
 
 	public static Dictionary<int, int> dirNums = new Dictionary<int, int> 
@@ -356,5 +354,43 @@ public static partial class g : Object
 		int x = CanFlip(i % 8);
 		int y = CanFlip(7 - (i / 8));
 		return new Vector2I(x, y);
+	}
+
+	public static void UpdatePiecesDisplay(Board curB)
+	{
+		piecesDisplay = curB.pieces.Copy();
+	}
+
+	public static void UpdatePiecesDisplay(Board curB, Move move, int colorN)
+	{
+		piecesDisplay = curB.pieces.Copy();
+
+		piecesDisplay[colorN, move.pieceN] &= ~(1UL << move.end);
+
+		/* Temporarily Restoring Captured Piece */
+		if (move.capturedPiece != -1)
+		{
+			if (move.isEnPassant)
+			{
+				int targetOfEnPassant = move.end + SinglePush(1 - colorN);
+				piecesDisplay[1 - colorN, 5] |= 1UL << targetOfEnPassant;
+			}
+			else
+			{
+				piecesDisplay[1 - colorN, move.capturedPiece] |= 1UL << move.end;
+			}
+		}
+
+		/* Hiding Rook While Castling */
+		if (move.pieceN == 0 && (move.start % 8) == 4)
+		{
+			for (int sideN = 0; sideN < 2; sideN++)
+			{
+				if (move.end == castlingKingPos[colorN, sideN])
+				{
+					piecesDisplay[colorN, 4] &= ~(1UL << g.castlingRookPosTo[colorN, sideN]);
+				}
+			}
+		}
 	}
 }

@@ -14,7 +14,7 @@ public partial class main : Node2D
 	public ColorRect turnIndicator;
 	public Sprite2D promotionBackground;
 	public Label debugLabelNode;
-	public TileMap movingNode;
+	public TileMap movingNodeTemplate;
 	
 	public override void _Ready()
 	{
@@ -22,7 +22,7 @@ public partial class main : Node2D
 		turnIndicator = (ColorRect) GetNode("TurnIndicator");
 		promotionBackground = (Sprite2D) GetNode("PromotionBackground");
 		debugLabelNode = (Label) GetNode("DebugLabel");
-		movingNode = (TileMap) GetNode("Moving");
+		movingNodeTemplate = (TileMap) GetNode("Moving");
 		
 		g.mainNode = GetNode(".");
 		g.Init();
@@ -32,6 +32,7 @@ public partial class main : Node2D
 		// cur.ImportFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
 	
 		InitBoard();
+		g.UpdatePiecesDisplay(cur.b);
 		UpdatePieces();
 		g.staticEvaluation = cur.Evaluate();
 
@@ -210,6 +211,8 @@ public partial class main : Node2D
 
 		curBoardHistory.Add(cur.b.Copy());
 		cur.MakeMove(playerMove);
+
+		g.UpdatePiecesDisplay(cur.b, playerMove, 1 - cur.b.sideToMove);
 		MovingAnimation();
 
 
@@ -240,7 +243,7 @@ public partial class main : Node2D
 
 		for (int colorN = 0; colorN < 2; colorN++) {
 			for (int pieceN = 0; pieceN < 6; pieceN++) {
-				ulong pieceBits = cur.b.pieces[colorN, pieceN];
+				ulong pieceBits = g.piecesDisplay[colorN, pieceN];
 
 				for (int i = 0; i < 64; i++) {
 					if (Convert.ToBoolean((pieceBits >> i) & 1UL)) // checks if pieceBits[i] is 1 or true, then places the piece
@@ -249,15 +252,6 @@ public partial class main : Node2D
 												g.IndexToVector(i), 			// Coordinate in the chessboard
 												2, 								// ID of pieces.png
 												new Vector2I(pieceN, colorN));	// Atlas coordinates of piece
-					}
-
-					/* Moving Animation */
-					if (g.handlePos == i)
-					{
-						boardPiecesNode.SetCell(1, 
-												g.IndexToVector(i), 
-												2, 
-												new Vector2I(g.handlePieceN, g.handleColorN));
 					}
 				}
 			}
@@ -329,21 +323,36 @@ public partial class main : Node2D
 	{
 		Move move = cur.b.lastMove;
 		int colorN = 1 - cur.b.sideToMove;
+		MovingAnimationByPiece(move, colorN);
+
+		/* Moving Rook for Castling */
+		if (move.pieceN == 0 && (move.start % 8) == 4)
+		{
+			for (int sideN = 0; sideN < 2; sideN++)
+			{
+				if (move.end == g.castlingKingPos[colorN, sideN])
+				{
+					move = new Move(4, 										// rook
+									g.castlingRookPosFrom[colorN, sideN],	// rook start
+									g.castlingRookPosTo[colorN, sideN]);	// rook end
+					MovingAnimationByPiece(move, colorN);
+				}
+			}
+		}
+	}
+
+	public void MovingAnimationByPiece(Move move, int colorN)
+	{
+		TileMap movingNode = (TileMap) movingNodeTemplate.Duplicate();
+		AddChild(movingNode);
 
 		Tween moveTween = GetTree().CreateTween();
 		Action resetHandle = () => 
 		{
-			g.handlePos = -1;
-			g.handlePieceN = -1;
-			g.handleColorN = -1;
+			g.UpdatePiecesDisplay(cur.b);
 			UpdatePieces();
-			movingNode.Clear();
-			movingNode.Position = new Vector2(0, 0);
+			movingNode.QueueFree();
 		};
-
-		g.handlePos = move.end;
-		g.handlePieceN = move.capturedPiece;
-		g.handleColorN = 1 - colorN;
 
 		Vector2I startVector = g.IndexToVector(move.start);
 		Vector2I endVector = g.IndexToVector(move.end);
