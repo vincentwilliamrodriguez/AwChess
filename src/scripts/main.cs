@@ -28,8 +28,8 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		// cur.ImportFromFEN(g.startingPosition);
-		cur.ImportFromFEN("5rk1/p2p2pp/8/8/8/4P3/5PPP/5RK1 w - - 0 1");
+		cur.ImportFromFEN(g.startingPosition);
+		// cur.ImportFromFEN("5rk1/p2p2pp/8/8/8/4P3/5PPP/5RK1 w - - 0 1");
 	
 		InitBoard();
 		g.UpdatePiecesDisplay(cur.b);

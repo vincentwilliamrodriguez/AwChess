@@ -31,6 +31,9 @@ public struct Board
 	public ulong zobristKey = 0;
 	public List<ulong> zobristHistory = new List<ulong> {};
 
+	public bool[,] pawnFileSet = new bool[2,8];
+	public bool isEndgame = false;
+
 	public Board() {}
 
 	public Board Clone()
@@ -58,6 +61,9 @@ public struct Board
 		clone.gameOutcome = gameOutcome;
 		clone.zobristKey = zobristKey;
 		clone.zobristHistory = zobristHistory.ToList();
+
+		clone.pawnFileSet = pawnFileSet;
+		clone.isEndgame = isEndgame;
 
 		return clone;
 	}
@@ -177,14 +183,34 @@ public partial class Chess
 	}
 
 	public void UpdateSerialized(){
+		b.pawnFileSet = new bool[2, 8];
+
 		for (int colorN = 0; colorN < 2; colorN++)
 		{
 			for (int pieceN = 0; pieceN < 6; pieceN++)
 			{
 				b.piecesSer[colorN, pieceN] = g.Serialize(b.pieces[colorN, pieceN]);
 				b.piecesCount[colorN, pieceN] = b.piecesSer[colorN, pieceN].Count;
+				
+				/* Pawn File Occupancy */
+				if (pieceN == 5)
+				{
+					foreach (int pawnIndex in b.piecesSer[colorN, pieceN])
+					{
+						b.pawnFileSet[colorN, pawnIndex % 8] = true;
+					}
+				}
 			}
 		}
+
+		/* Endgame Check */
+		if (b.piecesCount[0, 1] + b.piecesCount[1, 1] == 0) // if both sides don't have a queen
+			b.isEndgame = true;
+
+		else if (b.piecesCount[0, 2] + b.piecesCount[0, 3] <= 1 &&	// if white has 1 minor piece at most
+				 b.piecesCount[1, 2] + b.piecesCount[1, 3] <= 1)	// if black has 1 minor piece at most
+			b.isEndgame = true;
+			
 	}
 
 	public void CheckGameOutcome()
@@ -907,6 +933,29 @@ public partial class Chess
 
 				switch (pieceN)
 				{
+					/* KING */
+					case 0:
+						for (int fileDir = -1; fileDir <= 1; fileDir++)
+						{
+							int curFile = (b.kingPos % 8) + fileDir;
+
+							if (curFile >= 0 && curFile < 8)
+							{
+								for (int pawnColor = 0; pawnColor < 2; pawnColor++)
+								{
+									if (!b.pawnFileSet[pawnColor, curFile])
+									{
+										pieceBonus -= (fileDir == 0) ? 20 : 10; // penalty when king's file or adjacent files are semi-open/open
+									}
+								}
+							}
+						}						
+						break;
+					
+					/* QUEEN */
+					case 1:
+						break;
+
 					/* BISHOP */
 					case 2:
 						if (b.piecesCount[colorN, 2] == 2)
@@ -922,7 +971,16 @@ public partial class Chess
 
 					/* ROOK */
 					case 4:
-						pieceBonus += 7 * (8 - b.piecesCount[colorN, 5]) * pieceCount; // increasing rook value as pawns decrease
+						foreach (int rookIndex in b.piecesSer[colorN, pieceN])
+						{
+							pieceBonus += 7 * (8 - b.piecesCount[colorN, 5]); // increasing rook value as pawns decrease
+							
+							if (!b.pawnFileSet[colorN, rookIndex % 8])
+							{
+								pieceBonus += 20; // increasing rook value when in a semi-open/open file
+							}
+						}
+						
 						break;
 					
 					/* PAWN */
@@ -959,7 +1017,15 @@ public partial class Chess
 					int file = index % 8;
 					int rank = (colorN == 0) ? (index / 8) : (7 - index / 8); // flip rank if black
 					int sq =  g.ToIndex(file, rank);
-					placementScore += sign * g.pieceSquareTables[pieceN, sq];
+					
+					if (b.isEndgame && pieceN == 0)
+					{
+						placementScore += sign * g.kingEndgamePSTable[sq];
+					}
+					else
+					{
+						placementScore += sign * g.pieceSquareTables[pieceN, sq];
+					}
 				}
 			}
 

@@ -6,7 +6,7 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {true, false};
+	public static bool[] isPlayer = new bool[] {false, false};
 	public static int botSpeed = 200;
 	public static int botDepth = 4;
 	public static int botMaxID = 2000;
@@ -147,6 +147,18 @@ public static partial class g : Object
 		5, -5,-10,  0,  0,-10, -5,  5,
 		5, 10, 10,-20,-20, 10, 10,  5,
 		0,  0,  0,  0,  0,  0,  0,  0}
+	};
+
+	public static int[] kingEndgamePSTable = new int[64]
+	{
+		-50,-40,-30,-20,-20,-30,-40,-50,
+		-30,-20,-10,  0,  0,-10,-20,-30,
+		-30,-10, 20, 30, 30, 20,-10,-30,
+		-30,-10, 30, 40, 40, 30,-10,-30,
+		-30,-10, 30, 40, 40, 30,-10,-30,
+		-30,-10, 20, 30, 30, 20,-10,-30,
+		-30,-30,  0,  0,  0,  0,-30,-30,
+		-50,-30,-30,-30,-30,-30,-30,-50
 	};
 	
 	public static void Init() {
