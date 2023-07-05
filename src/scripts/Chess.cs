@@ -931,14 +931,20 @@ public partial class Chess
 						ulong enemyPawnMap = b.pieces[1 - colorN, pieceN];
 						foreach (int pawnIndex in b.piecesSer[colorN, pieceN])
 						{
-							ulong blockingPawns = pawnMap & g.pawnAhead[colorN, pawnIndex];
-							pieceBonus -= 35 * g.Serialize(blockingPawns).Count; // decreases pawn value if blocked
+							ulong blockingPawns = pawnMap & g.frontSpan[colorN, pawnIndex];
+							pieceBonus -= 35 * g.Serialize(blockingPawns).Count; // decreases pawn value if blocked (doubled, tripled, etc.)
 
-							ulong passedPawnObstacles = (pawnMap | enemyPawnMap) & g.passedPawnAhead[colorN, pawnIndex];
+							ulong passedPawnObstacles = enemyPawnMap & g.passedFrontSpan[colorN, pawnIndex];
 							if (passedPawnObstacles == 0UL)
 							{
 								int distanceFromHome = Math.Abs((pawnIndex / 8) - g.DoubleStartRank(colorN)) + 1;
 								pieceBonus += 30 * distanceFromHome; // increases passed pawn value as rank increases
+							}
+
+							ulong friendlyNeighborPawns = pawnMap & g.neighborFiles[pawnIndex % 8];
+							if (friendlyNeighborPawns == 0UL)
+							{
+								pieceBonus -= 20; // decreases pawn value if isolated
 							}
 						}
 						

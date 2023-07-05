@@ -6,7 +6,7 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {false, false};
+	public static bool[] isPlayer = new bool[] {true, false};
 	public static int botSpeed = 200;
 	public static int botDepth = 4;
 	public static int botMaxID = 2000;
@@ -26,8 +26,9 @@ public static partial class g : Object
 	public static ulong[] knightAttacks = new ulong[64]; // dimension is square
 	public static ulong[,] pawnMoves = new ulong[2, 64]; // dimensions are color and square
 	public static ulong[,] pawnAttacks = new ulong[2, 64]; // dimensions are color and square
-	public static ulong [,] pawnAhead = new ulong[2, 64]; // dimensions are color and square
-	public static ulong [,] passedPawnAhead = new ulong[2, 64]; // dimensions are color and square
+	public static ulong [,] frontSpan = new ulong[2, 64]; // dimensions are color and square
+	public static ulong [,] passedFrontSpan = new ulong[2, 64]; // dimensions are color and square
+	public static ulong [] neighborFiles = new ulong[8]; // dimension is file
 
 	public static ulong[,] castlingMasks = new ulong[2, 2] {{0xE, 0x60}, 
 															{0xE00000000000000, 0x6000000000000000}};
@@ -200,7 +201,7 @@ public static partial class g : Object
 				}
 
 				/* Squares Ahead of a Pawn */
-				pawnAhead[colorN, from] = rayAttacks[from, (colorN == 0) ? 1 : 5];
+				frontSpan[colorN, from] = rayAttacks[from, (colorN == 0) ? 1 : 5];
 			}
 		}
 		
@@ -209,17 +210,32 @@ public static partial class g : Object
 		{
 			for (int colorN = 0; colorN < 2; colorN++)
 			{
-				passedPawnAhead[colorN, from] = pawnAhead[colorN, from];
+				passedFrontSpan[colorN, from] = frontSpan[colorN, from];
 
 				foreach (int dir in new int[] {3, 7}) // side direction
 				{
 					if (WrapCheck(from, dirNums[dir]))
 					{
-						passedPawnAhead[colorN, from] |= pawnAhead[colorN, from + dirNums[dir]];
+						passedFrontSpan[colorN, from] |= frontSpan[colorN, from + dirNums[dir]];
 					}
 				}
 			}
-		}			
+		}
+
+		/* Neighbor Files */
+		for (int file = 0; file < 8; file++)
+		{
+			neighborFiles[file] = 0UL;
+
+			foreach (int dir in new int[] {3, 7})
+			{
+				if (WrapCheck(file, dirNums[dir]))
+				{
+					neighborFiles[file] |= (ulong) (0x101010101010101 << (file + dirNums[dir]));
+				}
+			}
+
+		}
 
 		/* In-between Lookup */
 		for (int from = 0; from < 64; from++)
