@@ -26,12 +26,15 @@ public static partial class g : Object
 	public static ulong[] knightAttacks = new ulong[64]; // dimension is square
 	public static ulong[,] pawnMoves = new ulong[2, 64]; // dimensions are color and square
 	public static ulong[,] pawnAttacks = new ulong[2, 64]; // dimensions are color and square
-	public static ulong [,] frontSpan = new ulong[2, 64]; // dimensions are color and square
-	public static ulong [,] passedFrontSpan = new ulong[2, 64]; // dimensions are color and square
-	public static ulong [] neighborFiles = new ulong[8]; // dimension is file
+	public static ulong[,] frontSpan = new ulong[2, 64]; // dimensions are color and square
+	public static ulong[,] passedFrontSpan = new ulong[2, 64]; // dimensions are color and square
+	public static ulong[] neighborFiles = new ulong[8]; // dimension is file
+	public static int[,] distanceBonus = new int[64, 64]; // dimensions are from and to squares
 
 	public static ulong[,] castlingMasks = new ulong[2, 2] {{0xE, 0x60}, 
 															{0xE00000000000000, 0x6000000000000000}};
+	public static ulong[,] pawnShieldMask = new ulong[2, 2] {{0x70700, 0xE0E000},
+														   {0x7070000000000, 0xE0E00000000000}};
 	public static int[,] castlingKingPos = new int[2, 2] {{2, 6}, {58, 62}};
 	public static int[,] castlingRookPosFrom = new int[2, 2] {{0, 7}, {56, 63}};
 	public static int[,] castlingRookPosTo = new int[2, 2] {{3, 5}, {59, 61}};
@@ -96,7 +99,7 @@ public static partial class g : Object
 		-20,-30,-30,-40,-40,-30,-30,-20,
 		-10,-20,-20,-20,-20,-20,-20,-10,
 		20, 20,  0,  0,  0,  0, 20, 20,
-		20, 30, 10,  0,  0, 10, 30, 20},
+		20, 40, 0,  0,  0, 0, 40, 20},
 		
 		/* QUEEN */
 		{-20,-10,-10, -5, -5,-10,-10,-20,
@@ -160,6 +163,7 @@ public static partial class g : Object
 		-30,-30,  0,  0,  0,  0,-30,-30,
 		-50,-30,-30,-30,-30,-30,-30,-50
 	};
+
 	
 	public static void Init() {
 		for (int from = 0; from < 64; from++)
@@ -249,7 +253,7 @@ public static partial class g : Object
 
 		}
 
-		/* In-between Lookup */
+		/* In-between Lookup & Distance Bonus */
 		for (int from = 0; from < 64; from++)
 		{
 			for (int to = 0; to < 64; to++)
@@ -263,6 +267,8 @@ public static partial class g : Object
 						inBetween[from, to] = fromRay ^ rayAttacks[to, dir];
 					}
 				}
+
+				distanceBonus[from, to] = 14 - (Math.Abs(from % 8 - to % 8) + Math.Abs(from / 8 - to / 8));
 			}
 		}
 

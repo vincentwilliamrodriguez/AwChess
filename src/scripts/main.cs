@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Diagnostics;
 
 public partial class main : Node2D
 {
@@ -15,6 +16,8 @@ public partial class main : Node2D
 	public Sprite2D promotionBackground;
 	public Label debugLabelNode;
 	public TileMap movingNodeTemplate;
+	public Sprite2D[] highlightNodes = new Sprite2D[2];
+	public Label[] labelNodes = new Label[2];
 	
 	public override void _Ready()
 	{
@@ -51,16 +54,84 @@ public partial class main : Node2D
 			}
 		}
 
+		/* Player and Bot Icons */
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			string c = Convert.ToString(colorN);
+			highlightNodes[colorN] = (Sprite2D) GetNode("Highlight" + c);
+			labelNodes[colorN] = (Label) GetNode("Label" + c);
+
+			if (g.isPlayer[colorN])
+			{
+				Sprite2D playerSprite = (Sprite2D) GetNode("Player" + c);
+				playerSprite.Show();
+			}
+			else
+			{
+				Sprite2D botSprite = (Sprite2D) GetNode("Bot" + c);
+				botSprite.Show();
+			}
+		}
+
 		// g.PrintMoveList(cur.b.possibleMoves);
 		// g.PrintMoveList(g.OrderMoves(cur.b.possibleMoves, cur));
 	}
 
 	public override void _Process(double delta) {
 		int turn = cur.b.sideToMove;
-		int botIndex = !g.isPlayer[turn] ? turn : 1 - turn;
+
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			AwChess bot = AwChessBot[colorN];
+
+			/* Turn Highlight Indicator */
+			highlightNodes[colorN].Visible = cur.b.sideToMove == colorN;
+
+			/* Label */
+			if (g.isPlayer[colorN])
+			{
+				labelNodes[colorN].Text = String.Format("Outcome: {0}\nEvaluation: {1}\n", 
+														cur.b.gameOutcome,
+														g.staticEvaluation);
+			}
+			else
+			{
+				labelNodes[colorN].Text = String.Format("Outcome: {0}\nEvaluation: {1}\nBot Depth: {2}\nTime: {3} s\nCount: {4}", 
+														cur.b.gameOutcome,
+														bot.botEval * g.sign[colorN],
+														bot.IDdepth,
+														bot.time.ElapsedMilliseconds / 1000.0,
+														bot.count);
+			}
+
+			/* Pondering */
+			if (!g.isPlayer[colorN] && 					// AwChess bot
+			!AwChessThread[colorN].IsAlive() &&			// Bot not thinking
+			cur.b.gameOutcome == -1)					// Game not ended yet
+			{
+				curBoardHistory.Add(cur.b.Copy());
+
+				Action botMove = () => {bot.SearchMove();};
+				AwChessThread[colorN].Start(Callable.From(botMove));
+			}
+			
+			/* Starting Timer */
+			if (!g.isPlayer[colorN] &&
+				cur.b.sideToMove == colorN &&
+				!bot.time.IsRunning &&
+				cur.b.gameOutcome == -1)
+			{
+				bot.unexpectedMove = !bot.expectedOpponentMove.Equals(cur.b.lastMove);
+				bot.time = Stopwatch.StartNew();
+			}
+				
+		}
 
 		UpdatePieces();
 		HighlightPossibleMoves();
+		HighlightBitboard(g.testHighlight);
+
+		/* 
 		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}\nBot Depth: {2}\nTime: {3} s\nCount: {4}", 
 									 Convert.ToString(cur.b.gameOutcome),
 									 AwChessBot[botIndex].botEval * g.sign[botIndex],
@@ -68,30 +139,7 @@ public partial class main : Node2D
 									 AwChessBot[turn].time.ElapsedMilliseconds / 1000.0,
 									 AwChessBot[turn].count);
 		debugLabelNode.Text = g.debugLabel;
-
-		// Random random = new Random();
-		HighlightBitboard(g.testHighlight);
-
-		if (!g.isPlayer[turn] && 					// AwChess bot's turn
-			!AwChessThread[1 - turn].IsAlive() &&	// Opponent bot not running
-			cur.b.gameOutcome == -1)				// Game not ended yet
-		{
-			/* Not Thinking */
-			if (!AwChessThread[turn].IsAlive())
-			{
-				curBoardHistory.Add(cur.b.Copy());
-
-				Action botMove = () => {AwChessBot[turn].SearchMove();};
-				AwChessThread[turn].Start(Callable.From(botMove));
-			}
-
-			/* Thinking */
-			else
-			{
-
-			}
-			// System.Threading.Thread.Sleep(500);
-		}
+ 		*/
 	}
 
 	public override void _UnhandledInput(InputEvent @event)

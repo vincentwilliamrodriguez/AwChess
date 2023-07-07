@@ -910,11 +910,12 @@ public partial class Chess
 		int materialValue = 0;
 		int mobilityScore = 0;
 		int placementScore = 0;
-
+		int[] kingTropism = new int[2] {0, 0};
 		
 		for (int colorN = 0; colorN < 2; colorN++)
 		{
 			int sign = g.sign[colorN];
+			int enemyKingPos = g.BitScan(b.pieces[1 - colorN, 0]);
 
 			bool isOpponent = (colorN != b.sideToMove);
 			if (isOpponent)
@@ -926,7 +927,7 @@ public partial class Chess
 
 			for (int pieceN = 0; pieceN < 6; pieceN++)
 			{
-				/* Material Value */
+				/* Material Value & King Tropism */
 				int pieceBonus = 0;
 				int pieceCount = b.piecesCount[colorN, pieceN];
 				materialValue += sign * g.piecesValue[pieceN] * pieceCount;
@@ -945,15 +946,32 @@ public partial class Chess
 								{
 									if (!b.pawnFileSet[pawnColor, curFile])
 									{
-										pieceBonus -= (fileDir == 0) ? 20 : 10; // penalty when king's file or adjacent files are semi-open/open
+										pieceBonus -= (fileDir == 0) ? 30 : 15; // penalty when king's file or adjacent files are semi-open/open
 									}
 								}
 							}
-						}						
+						}
+
+						if (!b.isEndgame)
+						{
+							for (int sideN = 0; sideN < 2; sideN++)
+							{
+								if (b.kingPos == g.castlingKingPos[colorN, sideN])
+								{
+									ulong pawnShield = b.pieces[colorN, 5] & g.pawnShieldMask[colorN, sideN];
+									pieceBonus += 20 * g.Serialize(pawnShield).Count; // bonus for each pawn in pawn shield
+								}
+							}
+						}
+
 						break;
 					
 					/* QUEEN */
 					case 1:
+						foreach (int queenIndex in b.piecesSer[colorN, pieceN])
+						{
+							kingTropism[1 - colorN] -= g.distanceBonus[queenIndex, enemyKingPos] * 5 / 2;
+						}
 						break;
 
 					/* BISHOP */
@@ -962,11 +980,21 @@ public partial class Chess
 						{
 							pieceBonus += 50; // bishop pair bonus
 						}
+
+						foreach (int bishopIndex in b.piecesSer[colorN, pieceN])
+						{
+							kingTropism[1 - colorN] -= g.distanceBonus[bishopIndex, enemyKingPos] / 2;
+						}
+
 						break;
 					
 					/* KNIGHT */
 					case 3:
-						pieceBonus -= 4 * (8 - b.piecesCount[colorN, 5]) * pieceCount; // decreasing knight value as pawns decrease
+						foreach (int knightIndex in b.piecesSer[colorN, pieceN])
+						{
+							pieceBonus -= 4 * (8 - b.piecesCount[colorN, 5]); // decreasing knight value as pawns decrease
+							kingTropism[1 - colorN] -= g.distanceBonus[knightIndex, enemyKingPos];
+						}
 						break;
 
 					/* ROOK */
@@ -1015,7 +1043,7 @@ public partial class Chess
 				foreach (int index in b.piecesSer[colorN, pieceN])
 				{
 					int file = index % 8;
-					int rank = (colorN == 0) ? (index / 8) : (7 - index / 8); // flip rank if black
+					int rank = (colorN == 1) ? (index / 8) : (7 - index / 8); // flip rank if white
 					int sq =  g.ToIndex(file, rank);
 					
 					if (b.isEndgame && pieceN == 0)
@@ -1040,7 +1068,10 @@ public partial class Chess
 			}
 		}
 
-		return materialValue + 2 * mobilityScore + placementScore;
+		return materialValue + 
+			   2 * mobilityScore + 
+			   placementScore +
+			   2 * (kingTropism[0] - kingTropism[1]);
 	}
 
 	public int CalculateMobility(int colorN)

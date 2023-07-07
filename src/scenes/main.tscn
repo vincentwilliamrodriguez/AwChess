@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://wtlwn2roashj"]
+[gd_scene load_steps=22 format=3 uid="uid://dum424i1205eh"]
 
 [ext_resource type="Texture2D" uid="uid://vbfddu354mps" path="res://src/assets/light.png" id="1_7jydu"]
 [ext_resource type="Script" path="res://src/scripts/main.cs" id="1_d4knv"]
@@ -7,6 +7,10 @@
 [ext_resource type="Texture2D" uid="uid://demgt3lim62b1" path="res://src/assets/green.png" id="5_djxg1"]
 [ext_resource type="Texture2D" uid="uid://crxdmy1g8ervj" path="res://src/assets/gold.png" id="6_nvjjs"]
 [ext_resource type="Texture2D" uid="uid://dkbbl37wnb38i" path="res://src/assets/red.png" id="7_ela24"]
+[ext_resource type="Texture2D" uid="uid://dbsh16sskx08a" path="res://src/assets/user1.png" id="8_rv5rs"]
+[ext_resource type="Texture2D" uid="uid://glg2xwaxhkos" path="res://src/assets/bot1.png" id="9_smtij"]
+[ext_resource type="Texture2D" uid="uid://br4gf40dtoqjj" path="res://src/assets/user0.png" id="10_k28tm"]
+[ext_resource type="Texture2D" uid="uid://bgr58epjll2be" path="res://src/assets/bot0.png" id="11_gnq6o"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_38rdy"]
 texture = ExtResource("1_7jydu")
@@ -63,6 +67,7 @@ tile_size = Vector2i(133, 133)
 sources/0 = SubResource("TileSetAtlasSource_gygfc")
 
 [sub_resource type="SystemFont" id="SystemFont_68ufa"]
+subpixel_positioning = 0
 
 [sub_resource type="LabelSettings" id="LabelSettings_sgnwh"]
 font = SubResource("SystemFont_68ufa")
@@ -112,16 +117,12 @@ layer_0/name = "pieces"
 layer_0/z_index = 1
 
 [node name="TurnIndicator" type="ColorRect" parent="."]
+visible = false
 modulate = Color(1, 1, 1, 0.490196)
 offset_left = 1166.0
 offset_top = 457.0
 offset_right = 1316.0
 offset_bottom = 607.0
-size_flags_horizontal = 8
-
-[node name="GridContainer" type="GridContainer" parent="."]
-offset_right = 40.0
-offset_bottom = 40.0
 size_flags_horizontal = 8
 
 [node name="PromotionBackground" type="Sprite2D" parent="."]
@@ -132,10 +133,90 @@ scale = Vector2(1.95, 1.95)
 texture = ExtResource("5_djxg1")
 
 [node name="DebugLabel" type="Label" parent="."]
+visible = false
 offset_left = 1133.0
 offset_top = 638.0
 offset_right = 1294.0
 offset_bottom = 685.0
 text = "Awaw Pogi
+"
+label_settings = SubResource("LabelSettings_sgnwh")
+
+[node name="Player1" type="Sprite2D" parent="."]
+visible = false
+position = Vector2(1160, 0)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("8_rv5rs")
+centered = false
+offset = Vector2(0, 150)
+
+[node name="Bot1" type="Sprite2D" parent="."]
+visible = false
+position = Vector2(1160, 0)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("9_smtij")
+centered = false
+offset = Vector2(0, 150)
+
+[node name="Highlight1" type="Sprite2D" parent="."]
+visible = false
+modulate = Color(1, 1, 1, 0.180392)
+z_index = -3
+position = Vector2(1122, 14)
+scale = Vector2(1.70677, 1.70677)
+texture = ExtResource("5_djxg1")
+centered = false
+
+[node name="Label1" type="Label" parent="."]
+offset_left = 1124.0
+offset_top = 248.0
+offset_right = 1285.0
+offset_bottom = 483.0
+size_flags_vertical = 6
+size_flags_stretch_ratio = 13.17
+text = "Awaw Pogi
+Awaw
+Awaw
+Awaw
+Awaw"
+label_settings = SubResource("LabelSettings_sgnwh")
+
+[node name="Player0" type="Sprite2D" parent="."]
+visible = false
+position = Vector2(1160, 814)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("10_k28tm")
+centered = false
+offset = Vector2(0, 150)
+
+[node name="Bot0" type="Sprite2D" parent="."]
+visible = false
+position = Vector2(1160, 814)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("11_gnq6o")
+centered = false
+offset = Vector2(0, 150)
+
+[node name="Highlight0" type="Sprite2D" parent="."]
+visible = false
+modulate = Color(1, 1, 1, 0.180392)
+z_index = -3
+position = Vector2(1125, 827)
+scale = Vector2(1.70677, 1.70677)
+texture = ExtResource("5_djxg1")
+centered = false
+
+[node name="Label0" type="Label" parent="."]
+offset_left = 1124.0
+offset_top = 575.0
+offset_right = 1285.0
+offset_bottom = 810.0
+size_flags_vertical = 6
+size_flags_stretch_ratio = 13.17
+text = "Awaw Pogi
+Awaw
+Awaw
+Awaw
+Awaw
 "
 label_settings = SubResource("LabelSettings_sgnwh")
