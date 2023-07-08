@@ -144,6 +144,7 @@ label_settings = SubResource("LabelSettings_sgnwh")
 
 [node name="Player1" type="Sprite2D" parent="."]
 visible = false
+z_index = -1
 position = Vector2(1160, 0)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("8_rv5rs")
@@ -152,6 +153,7 @@ offset = Vector2(0, 150)
 
 [node name="Bot1" type="Sprite2D" parent="."]
 visible = false
+z_index = -1
 position = Vector2(1160, 0)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("9_smtij")
@@ -183,6 +185,7 @@ label_settings = SubResource("LabelSettings_sgnwh")
 
 [node name="Player0" type="Sprite2D" parent="."]
 visible = false
+z_index = -1
 position = Vector2(1160, 814)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("10_k28tm")
@@ -191,6 +194,7 @@ offset = Vector2(0, 150)
 
 [node name="Bot0" type="Sprite2D" parent="."]
 visible = false
+z_index = -1
 position = Vector2(1160, 814)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("11_gnq6o")

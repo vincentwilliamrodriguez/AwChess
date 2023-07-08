@@ -6,7 +6,7 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {false, false};
+	public static bool[] isPlayer = new bool[] {true, true};
 	public static int botSpeed = 200;
 	public static int botDepth = 4;
 	public static int botMaxID = 2000;
@@ -35,6 +35,7 @@ public static partial class g : Object
 															{0xE00000000000000, 0x6000000000000000}};
 	public static ulong[,] pawnShieldMask = new ulong[2, 2] {{0x70700, 0xE0E000},
 														   {0x7070000000000, 0xE0E00000000000}};
+	public static int[] castlingKingPosFrom = new int[2] {4, 60};
 	public static int[,] castlingKingPos = new int[2, 2] {{2, 6}, {58, 62}};
 	public static int[,] castlingRookPosFrom = new int[2, 2] {{0, 7}, {56, 63}};
 	public static int[,] castlingRookPosTo = new int[2, 2] {{3, 5}, {59, 61}};
@@ -371,6 +372,7 @@ public static partial class g : Object
 		string startRank = "";
 		string connector = (move.capturedPiece != -1) ? "x" : "";
 		string end = fileArray[move.end % 8] + Convert.ToString(move.end / 8 + 1);
+		string promotion = (move.promotionPiece != -1) ? "=" + piecesMoveArray[move.promotionPiece] : "";
 
 		/* Ambiguity Check */
 		if (move.pieceN != 5)	// if not a pawn
@@ -378,7 +380,8 @@ public static partial class g : Object
 			foreach (Move moveCheck in legalMoves)
 			{
 				if (moveCheck.pieceN == move.pieceN &&		// if same piece type
-					moveCheck.end == move.end)				// if can move to the same square
+					moveCheck.end == move.end &&			// if can move to the same square
+					moveCheck.start != move.start)			// if not the same exact piece
 				{
 					bool sameFile = (moveCheck.start % 8) == (move.start % 8);
 					bool sameRank = (moveCheck.start / 8) == (move.start / 8);
@@ -399,7 +402,99 @@ public static partial class g : Object
 			startFile = Convert.ToString(fileArray[move.start % 8]);
 		}
 
-		return piece + startFile + startRank + connector + end;
+		return piece + startFile + startRank + connector + end + promotion;
+	}
+
+	public static Move StringToMove(string move, Chess source)
+	{
+		Board b = source.b;
+		int pieceN = -1, start = -1, end = -1, promotionPiece = -1, capturedPiece = -1;
+
+		string initial = move[0].ToString();
+		string suffix = (move.Contains('+') || move.Contains('#')) ? move[move.Length - 1].ToString() : "";	// check or checkmate: get last char									
+		move = move.Substring(0, move.Length - suffix.Length);
+
+		if (initial == "O")
+		{
+			int sideN = Convert.ToInt32(move == "O-O");	// if castling kingside, then 1, otherwise 0
+
+			pieceN = 0;
+			start = castlingKingPosFrom[b.sideToMove];
+			end = castlingKingPos[b.sideToMove, sideN];
+		}
+		else
+		{
+			pieceN = Array.IndexOf(piecesMoveArray, initial);
+
+			if (pieceN == -1)
+			{
+				pieceN = 5;	// if initial is not found in array, pieceN is a pawn
+			}
+			else 
+			{
+				move = move.Substring(1);
+			}
+
+			if (move.Contains('='))	// promotion
+			{
+				promotionPiece = Array.IndexOf(piecesMoveArray, move[move.Length - 1].ToString());
+				move = move.Substring(0, move.Length - 2);
+			}
+
+			int endFile = Array.IndexOf(fileArray, move[move.Length - 2]);
+			int endRank = move[move.Length - 1] - '1';
+			end = ToIndex(endFile, endRank);
+			move = move.Substring(0, move.Length - 2);
+
+			if (move.Contains('x'))	// capture
+			{
+				capturedPiece = source.FindPieceN(end);
+				move = move.Substring(0, move.Length - 1);
+			}
+
+			int ambFile = -1, ambRank = -1;
+
+			if (pieceN != 5)
+			{
+				foreach (char c in move)
+				{
+					int ind = Array.IndexOf(fileArray, c);
+
+					if (ind != -1)
+					{
+						ambFile = ind; // ambiguity file
+					}
+					else
+					{
+						ambRank = c - '1'; // ambiguity rank
+					}
+				}
+			}
+
+			GD.Print("Awaw ", ambFile, ambRank);
+
+			foreach (Move moveCheck in b.possibleMoves)
+			{
+				bool sameFile = (moveCheck.start % 8) == ambFile;
+				bool sameRank = (moveCheck.start / 8) == ambRank;
+				
+				if (moveCheck.pieceN == pieceN &&
+					moveCheck.end == end &&
+					(ambFile == -1 || sameFile) &&
+					(ambRank == -1 || sameRank))
+				{
+					start = moveCheck.start;
+					break;
+				}
+			}
+
+		}
+
+
+		Move res = new Move(pieceN, start, end, promotionPiece, capturedPiece);
+		res.isEnPassant = pieceN == 5 && end == b.enPassantSquare;
+
+		return res;
 	}
 
 	public static void PrintMoveList(List<Move> source, List<Move> legalMoves)

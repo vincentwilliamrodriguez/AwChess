@@ -33,8 +33,8 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("2k4r/1pp4p/p4p2/2bp2p1/3NrP2/3RP3/PPP1K1P1/7R b - - 0 1");
+		// cur.ImportFromFEN(g.startingPosition);
+		cur.ImportFromFEN("2r2rk1/1B3ppp/8/8/3p4/7B/2P2PPP/4K2R w K - 1 1");
 	
 		InitBoard();
 		g.UpdatePiecesDisplay(cur.b);
@@ -63,20 +63,23 @@ public partial class main : Node2D
 			highlightNodes[colorN] = (Sprite2D) GetNode("Highlight" + c);
 			labelNodes[colorN] = (Label) GetNode("Label" + c);
 
-			if (g.isPlayer[colorN])
+			Sprite2D playerSprite = (Sprite2D) GetNode((g.isPlayer[colorN] ? "Player" : "Bot") + c);
+
+			if (g.isBoardFlipped)
 			{
-				Sprite2D playerSprite = (Sprite2D) GetNode("Player" + c);
-				playerSprite.Show();
+				playerSprite.Position = new Vector2(playerSprite.Position.X, (colorN == 0) ? 0 : 814);
+				highlightNodes[colorN].Position = new Vector2(highlightNodes[colorN].Position.X, (colorN == 0) ? 14 : 827);
+				labelNodes[colorN].Position = new Vector2(labelNodes[colorN].Position.X, (colorN == 0) ? 248 : 575);
 			}
-			else
-			{
-				Sprite2D botSprite = (Sprite2D) GetNode("Bot" + c);
-				botSprite.Show();
-			}
+
+			playerSprite.Show();
 		}
 
 		// g.PrintMoveList(cur.b.possibleMoves);
 		// g.PrintMoveList(g.OrderMoves(cur.b.possibleMoves, cur));
+
+		Move testing = g.StringToMove("B7xc8+", cur);
+		GD.Print("Awaw ", g.MoveToString(testing, cur.b.possibleMoves));
 	}
 
 	public override void _Process(double delta) {
