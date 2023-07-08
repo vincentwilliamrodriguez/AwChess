@@ -18,7 +18,7 @@ public static partial class g : Object
 	public static ulong curHighlightedMoves = 0UL;
 	public static string startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 	public static char[] piecesArray = new char[] {'k', 'q', 'b', 'n', 'r', 'p'};
-	public static char[] piecesMoveArray = new char[] {'K', 'Q', 'B', 'N', 'R', ' '};
+	public static string[] piecesMoveArray = new string[] {"K", "Q", "B", "N", "R", ""};
 	public static char[] fileArray = new char[] {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
 
 	public static ulong[,] rayAttacks = new ulong[64,8]; // dimensions are square and direction (starting from NW clockwise)
@@ -350,15 +350,11 @@ public static partial class g : Object
 		return isBoardFlipped ? 7-n : n;
 	}
 
-	public static string MoveToString(Move move)
+	/* NOTE: MoveToString() MUST BE CALLED BEFORE MakeMove() */
+	public static string MoveToString(Move move, List<Move> legalMoves)
 	{
 		if (move.pieceN == -1) return "N/A";
-
-		char piece = piecesMoveArray[move.pieceN];
-		string start = fileArray[move.start % 8] + Convert.ToString(move.start / 8 + 1);
-		string end = fileArray[move.end % 8] + Convert.ToString(move.end / 8 + 1);
 		
-
 		/* Castling notation */
 		if (move.pieceN == 0 && (move.start % 8) == 4)
 		{
@@ -369,18 +365,49 @@ public static partial class g : Object
 				return "O-O";
 		}
 
-		/* Move connector */
-		char connector = (move.capturedPiece != -1) ? 'x' : '-';
 
-		return piece + start + connector + end;
+		string piece = piecesMoveArray[move.pieceN];
+		string startFile = "";
+		string startRank = "";
+		string connector = (move.capturedPiece != -1) ? "x" : "";
+		string end = fileArray[move.end % 8] + Convert.ToString(move.end / 8 + 1);
+
+		/* Ambiguity Check */
+		if (move.pieceN != 5)	// if not a pawn
+		{
+			foreach (Move moveCheck in legalMoves)
+			{
+				if (moveCheck.pieceN == move.pieceN &&		// if same piece type
+					moveCheck.end == move.end)				// if can move to the same square
+				{
+					bool sameFile = (moveCheck.start % 8) == (move.start % 8);
+					bool sameRank = (moveCheck.start / 8) == (move.start / 8);
+
+					if (!sameFile)
+					{
+						startFile = Convert.ToString(fileArray[move.start % 8]); // deambiguify file
+					}
+					else if (!sameRank)
+					{
+						startRank = Convert.ToString(move.start / 8 + 1);  // deambiguify rank
+					}
+				}
+			}
+		}
+		else if (move.capturedPiece != -1)
+		{
+			startFile = Convert.ToString(fileArray[move.start % 8]);
+		}
+
+		return piece + startFile + startRank + connector + end;
 	}
 
-	public static void PrintMoveList(List<Move> source)
+	public static void PrintMoveList(List<Move> source, List<Move> legalMoves)
 	{
 		GD.Print();
 		foreach (Move move in source)
 		{
-			GD.Print(MoveToString(move));
+			GD.Print(MoveToString(move, legalMoves));
 		}
 	}
 

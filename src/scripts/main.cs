@@ -110,7 +110,7 @@ public partial class main : Node2D
 			else
 			{
 				labelNodes[colorN].Text = String.Format("Expected: {0}\nEvaluation: {1}\nBot Depth: {2}\nTime: {3} s\nCount: {4}", 
-														g.MoveToString(bot.expectedOpponentMove),
+														bot.expectedOpponentMoveDisplay,
 														bot.botEval * g.sign[colorN],
 														bot.IDdepth,
 														bot.time.ElapsedMilliseconds / 1000.0,
@@ -269,6 +269,7 @@ public partial class main : Node2D
 		}
 		
 		playerMove.promotionPiece = promotionPiece;
+		GD.Print(g.MoveToString(playerMove, cur.b.possibleMoves), '\n');
 
 		curBoardHistory.Add(cur.b.Copy());
 		cur.MakeMove(playerMove);
@@ -278,7 +279,6 @@ public partial class main : Node2D
 
 
 		g.staticEvaluation = cur.Evaluate(true);
-		GD.Print(g.MoveToString(playerMove), '\n');
 	}
 
 	public void InitBoard() {

@@ -18,6 +18,7 @@ public partial class AwChess : Node
 	public int IDdepth;
 	public NodeVal IDbest;
 	public Move expectedOpponentMove = new Move(-1);
+	public string expectedOpponentMoveDisplay = "N/A";
 	public bool unexpectedMove = false;
 	public bool restartedSearch = false;
 	public bool interrupt = false;
@@ -102,7 +103,7 @@ public partial class AwChess : Node
 			if (depth == g.perftDepth)
 			{
 				int pieceN = move.pieceN;
-				GD.Print(g.MoveToString(move), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
+				GD.Print(g.MoveToString(move, curRef.b.possibleMoves), ": ", childCount.nodes, "   castles: ", childCount.castles, "   en passants: ", childCount.enPassants, "   promotions: ", childCount.promotions);
 			}
 		}
 
@@ -165,15 +166,11 @@ public partial class AwChess : Node
 		IDdepth--;
 		time.Stop();
 
-		curRef.MakeMove(IDbest.move);
-		g.UpdatePiecesDisplay(curRef.b, IDbest.move, botColor);
-		g.mainNode.CallDeferred("MovingAnimation");
-
 		GD.Print(String.Format("(Bot {2})\nEval: {0}\nBest Move: {3}\nMax Depth: {5}\nTotal Positions: {1}\nTime: {4} seconds", 
 								IDbest.score, 
 								count, 
 								botColor, 
-								g.MoveToString(IDbest.move), 
+								g.MoveToString(IDbest.move, curRef.b.possibleMoves), 
 								time.ElapsedMilliseconds / 1000.0,
 								IDdepth)
 				);
@@ -183,7 +180,12 @@ public partial class AwChess : Node
 
 		g.staticEvaluation = curRef.Evaluate(true);
 		botEval = IDbest.score;
+		
+		curRef.MakeMove(IDbest.move);
 		expectedOpponentMove = IDbest.principal.Count >= 2 ? IDbest.principal[1] : new Move(-1);
+		expectedOpponentMoveDisplay = g.MoveToString(expectedOpponentMove, curRef.b.possibleMoves);
+		g.UpdatePiecesDisplay(curRef.b, IDbest.move, botColor);
+		g.mainNode.CallDeferred("MovingAnimation");
         mainJoinThread.CallDeferred();
 	}
 
@@ -456,7 +458,7 @@ public struct NodeVal
 	{
 		foreach (Move move in principal)
 		{
-			GD.Print(g.MoveToString(move));
+			GD.Print(g.MoveToString(move, new List<Move> {})); // NOTE: display move may be inaccurate due to ambiguities
 		}
 	}
 
