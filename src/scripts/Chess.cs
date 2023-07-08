@@ -280,7 +280,8 @@ public partial class Chess
 		/* Updating Pieces */
 		bool isWhitesTurn = b.sideToMove == 0;
 
-		if ((b.occupancy >> endIndex & 1) == 1UL) // if end index has a piece
+		if ((b.occupancy >> endIndex & 1) == 1UL && // if end index has a piece
+			move.capturedPiece != -1)
 		{
 			b.pieces[1 - b.sideToMove, move.capturedPiece] &= ~(1UL << endIndex); // removes captured enemy piece from board
 			b.zobristKey ^= g.zobristNumsPos[1 - b.sideToMove, move.capturedPiece, endIndex];

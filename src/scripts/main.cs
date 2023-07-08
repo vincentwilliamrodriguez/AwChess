@@ -18,6 +18,8 @@ public partial class main : Node2D
 	public TileMap movingNodeTemplate;
 	public Sprite2D[] highlightNodes = new Sprite2D[2];
 	public Label[] labelNodes = new Label[2];
+
+	public bool interrupt = false;
 	
 	public override void _Ready()
 	{
@@ -32,7 +34,7 @@ public partial class main : Node2D
 
 		cur = new Chess();
 		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("5rk1/p2p2pp/8/8/8/4P3/5PPP/5RK1 w - - 0 1");
+		// cur.ImportFromFEN("2k4r/1pp4p/p4p2/2bp2p1/3NrP2/3RP3/PPP1K1P1/7R b - - 0 1");
 	
 		InitBoard();
 		g.UpdatePiecesDisplay(cur.b);
@@ -80,9 +82,20 @@ public partial class main : Node2D
 	public override void _Process(double delta) {
 		int turn = cur.b.sideToMove;
 
+		if (cur.b.gameOutcome != -1)
+		{
+			interrupt = true;
+		}
+
 		for (int colorN = 0; colorN < 2; colorN++)
 		{
 			AwChess bot = AwChessBot[colorN];
+			
+			/* Interruption */
+			if (!g.isPlayer[colorN])
+			{
+				bot.interrupt = interrupt;
+			}
 
 			/* Turn Highlight Indicator */
 			highlightNodes[colorN].Visible = cur.b.sideToMove == colorN;
@@ -96,8 +109,8 @@ public partial class main : Node2D
 			}
 			else
 			{
-				labelNodes[colorN].Text = String.Format("Outcome: {0}\nEvaluation: {1}\nBot Depth: {2}\nTime: {3} s\nCount: {4}", 
-														cur.b.gameOutcome,
+				labelNodes[colorN].Text = String.Format("Expected: {0}\nEvaluation: {1}\nBot Depth: {2}\nTime: {3} s\nCount: {4}", 
+														g.MoveToString(bot.expectedOpponentMove),
 														bot.botEval * g.sign[colorN],
 														bot.IDdepth,
 														bot.time.ElapsedMilliseconds / 1000.0,
@@ -107,7 +120,7 @@ public partial class main : Node2D
 			/* Pondering */
 			if (!g.isPlayer[colorN] && 					// AwChess bot
 			!AwChessThread[colorN].IsAlive() &&			// Bot not thinking
-			cur.b.gameOutcome == -1)					// Game not ended yet
+			!interrupt)									// Game not ended yet
 			{
 				curBoardHistory.Add(cur.b.Copy());
 
@@ -119,12 +132,11 @@ public partial class main : Node2D
 			if (!g.isPlayer[colorN] &&
 				cur.b.sideToMove == colorN &&
 				!bot.time.IsRunning &&
-				cur.b.gameOutcome == -1)
+				!interrupt)
 			{
 				bot.unexpectedMove = !bot.expectedOpponentMove.Equals(cur.b.lastMove);
 				bot.time = Stopwatch.StartNew();
 			}
-				
 		}
 
 		UpdatePieces();
@@ -151,7 +163,7 @@ public partial class main : Node2D
 				g.perftSpeed = 0;
 				Vector2I coor = boardPiecesNode.LocalToMap(mouseEvent.Position);
 
-				if (g.isPromoting && g.isPlayer[cur.b.sideToMove] && cur.b.gameOutcome == -1)
+				if (g.isPromoting && g.isPlayer[cur.b.sideToMove] && !interrupt)
 				{
 					// end choosing promotion piece
 					Vector2I promotionAtlas = boardPiecesNode.GetCellAtlasCoords(4, coor);
@@ -168,7 +180,7 @@ public partial class main : Node2D
 
 					UpdatePromotionDisplay();
 				}
-				else if (g.IsWithinBoard(coor.X, coor.Y) && g.isPlayer[cur.b.sideToMove] && cur.b.gameOutcome == -1)
+				else if (g.IsWithinBoard(coor.X, coor.Y) && g.isPlayer[cur.b.sideToMove] && !interrupt)
 				{
 					/* HUMAN */
 					coor.X = g.CanFlip(coor.X);
@@ -371,7 +383,7 @@ public partial class main : Node2D
 	public void MovingAnimation()
 	{
 		Move move = cur.b.lastMove;
-		int colorN = 1 - cur.b.sideToMove;
+		int colorN = cur.FindColorN(move.end);
 		MovingAnimationByPiece(move, colorN);
 
 		/* Moving Rook for Castling */

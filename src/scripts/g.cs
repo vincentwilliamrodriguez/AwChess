@@ -352,10 +352,13 @@ public static partial class g : Object
 
 	public static string MoveToString(Move move)
 	{
+		if (move.pieceN == -1) return "N/A";
+
 		char piece = piecesMoveArray[move.pieceN];
 		string start = fileArray[move.start % 8] + Convert.ToString(move.start / 8 + 1);
 		string end = fileArray[move.end % 8] + Convert.ToString(move.end / 8 + 1);
 		
+
 		/* Castling notation */
 		if (move.pieceN == 0 && (move.start % 8) == 4)
 		{

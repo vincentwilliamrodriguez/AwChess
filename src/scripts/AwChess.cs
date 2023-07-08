@@ -14,12 +14,13 @@ public partial class AwChess : Node
 	public int botEval;
 	public Dictionary<ulong, NodeVal> transpositionTable = new Dictionary<ulong, NodeVal> {};
 	
+	public Stopwatch time = new Stopwatch();
 	public int IDdepth;
 	public NodeVal IDbest;
 	public Move expectedOpponentMove = new Move(-1);
 	public bool unexpectedMove = false;
 	public bool restartedSearch = false;
-	public Stopwatch time = new Stopwatch();
+	public bool interrupt = false;
 
 	public int count;
 	public int count2;
@@ -110,6 +111,12 @@ public partial class AwChess : Node
 
 	public void SearchMove()
 	{
+		if (curRef.b.gameOutcome != -1)
+		{
+			mainJoinThread.CallDeferred();
+			return;
+		}
+
 		time = new Stopwatch();
 		IDbest = new NodeVal(new Move(-1), g.negativeInfinity);
 		IDdepth = 1;
@@ -123,6 +130,12 @@ public partial class AwChess : Node
 		while (time.ElapsedMilliseconds <= g.botMaxID || 
 			  (unexpectedMove && !restartedSearch))
 		{
+			if (interrupt)
+			{
+				mainJoinThread.CallDeferred();
+				return;
+			}
+
 			if (expectedOpponentMove.pieceN == -1 &&	// beginning of the game / unable to recognize expected move
 				!time.IsRunning)						// AwChess bot move hasn't started yet
 			{
@@ -143,7 +156,6 @@ public partial class AwChess : Node
 				restartedSearch = true;
 			}
 			
-
 			IDbest = NegaMax(IDdepth, g.negativeInfinity, g.positiveInfinity);
 			IDdepth++;
 
@@ -253,7 +265,8 @@ public partial class AwChess : Node
 				break;
 			}
 
-			if ((time.IsRunning && unexpectedMove && !restartedSearch) ||	// stop when opponent plays unexpected move
+			if (interrupt ||
+			   (time.IsRunning && unexpectedMove && !restartedSearch) ||	// stop when opponent plays unexpected move
 			   (time.ElapsedMilliseconds > g.botMaxID && 					// iterative deepening limit when current time exceeds max ID time (on root depth only)
 				depth == IDdepth)) 							
 			{
