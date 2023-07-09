@@ -6,7 +6,7 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {false, false};
+	public static bool[] isPlayer = new bool[] {true, true};
 	public static int botSpeed = 200;
 	public static int botDepth = 4;
 	public static int botMaxID = 2000;
@@ -455,20 +455,17 @@ public static partial class g : Object
 
 			int ambFile = -1, ambRank = -1;
 
-			if (pieceN != 5)
+			foreach (char c in move)
 			{
-				foreach (char c in move)
-				{
-					int ind = Array.IndexOf(fileArray, c);
+				int ind = Array.IndexOf(fileArray, c);
 
-					if (ind != -1)
-					{
-						ambFile = ind; // ambiguity file
-					}
-					else
-					{
-						ambRank = c - '1'; // ambiguity rank
-					}
+				if (ind != -1)
+				{
+					ambFile = ind; // ambiguity file
+				}
+				else
+				{
+					ambRank = c - '1'; // ambiguity rank
 				}
 			}
 

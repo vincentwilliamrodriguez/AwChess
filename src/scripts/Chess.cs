@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 
 public struct Board
@@ -165,6 +166,47 @@ public partial class Chess
 		return "";
 	}
 
+	public void ImportFromPGN(string source)
+	{
+		source = source.Replace(System.Environment.NewLine, " ");;
+		source = new string(source.Where(c => !char.IsControl(c)).ToArray());
+		string[] fields = source.Split(']');
+		string moveText = fields[fields.Count() - 1];
+		moveText = Regex.Replace(moveText, @"\{.*?\}", string.Empty);
+		string[] moveCandidates = moveText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+		string[] filterMoves = new string[] {".", "1-0", "0-1", "1/2", "*"};
+
+		foreach (string moveCandidate in moveCandidates)
+		{
+			if(!filterMoves.Any(moveCandidate.Contains))
+			{
+				string moveString = moveCandidate.Replace("+", "").Replace("#", "");
+				Move move = g.StringToMove(moveString, this);
+				MakeMove(move);
+			}
+		}
+
+		switch (moveCandidates[moveCandidates.Length - 1])
+		{
+			case "1-0":
+				b.gameOutcome = 0;
+				break;
+			
+			case "0-1":
+				b.gameOutcome = 1;
+				break;
+			
+			case "1/2-1/2":
+				b.gameOutcome = 2;
+				break;
+			
+			case "*":
+				b.gameOutcome = -1;
+				break;
+			
+		}
+	}
+
 	public string ExportToPGN()
 	{
 		string result = "*";
@@ -215,7 +257,8 @@ public partial class Chess
 			Board bFuture = (i + 1 < boardHistory.Count) ? boardHistory[i + 1] : b;
 			if (bFuture.isInCheck)
 			{
-				temp += (bFuture.gameOutcome == 0 || bFuture.gameOutcome == 1) ? "#" : "+";
+				bool isCheckmate = bFuture.possibleMoves.Count == 0 & (bFuture.gameOutcome == 0 || bFuture.gameOutcome == 1);
+				temp += isCheckmate ? "#" : "+";
 			}
 
 			moveText += temp + " ";
@@ -360,6 +403,7 @@ public partial class Chess
 		b.pieces[b.sideToMove, startPieceN] |= 1UL << endIndex; // places moving piece to end position
 		b.zobristKey ^= g.zobristNumsPos[b.sideToMove, startPieceN, startIndex];
 		b.zobristKey ^= g.zobristNumsPos[b.sideToMove, startPieceN, endIndex];
+	
 
 		/* Enforcing Promotion */
 		if (g.IsPromotion(b.sideToMove, startPieceN, endIndex))

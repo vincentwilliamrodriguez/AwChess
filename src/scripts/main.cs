@@ -34,7 +34,7 @@ public partial class main : Node2D
 		cur = new Chess();
 		cur.isCur = true;
 		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("2r2rk1/1B3ppp/8/8/3p4/7B/2P2PPP/4K2R w K - 1 1");
+		// cur.ImportFromFEN("4r2r/2k3p1/Ppp2p1p/7P/2pP2P1/2B2P2/5K2/R3R3 w - - 0 35");
 	
 		InitBoard();
 		g.UpdatePiecesDisplay(cur.b);
@@ -77,6 +77,12 @@ public partial class main : Node2D
 
 		// g.PrintMoveList(cur.b.possibleMoves);
 		// g.PrintMoveList(g.OrderMoves(cur.b.possibleMoves, cur));
+
+		using var file = FileAccess.Open("user://test.pgn", FileAccess.ModeFlags.Read);
+		string pgn = file.GetAsText();
+		cur.ImportFromPGN(pgn);
+		
+		g.UpdatePiecesDisplay(cur.b);
 	}
 
 	public override void _Process(double delta) {
