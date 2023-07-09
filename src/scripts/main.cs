@@ -7,7 +7,6 @@ using System.Diagnostics;
 public partial class main : Node2D
 {
 	public Chess cur;
-	public List<Board> curBoardHistory = new List<Board> {};
 	public AwChess[] AwChessBot = new AwChess[2];
 	public GodotThread[] AwChessThread = new GodotThread[2];
 
@@ -33,8 +32,9 @@ public partial class main : Node2D
 		g.Init();
 
 		cur = new Chess();
-		// cur.ImportFromFEN(g.startingPosition);
-		cur.ImportFromFEN("2r2rk1/1B3ppp/8/8/3p4/7B/2P2PPP/4K2R w K - 1 1");
+		cur.isCur = true;
+		cur.ImportFromFEN(g.startingPosition);
+		// cur.ImportFromFEN("2r2rk1/1B3ppp/8/8/3p4/7B/2P2PPP/4K2R w K - 1 1");
 	
 		InitBoard();
 		g.UpdatePiecesDisplay(cur.b);
@@ -77,9 +77,6 @@ public partial class main : Node2D
 
 		// g.PrintMoveList(cur.b.possibleMoves);
 		// g.PrintMoveList(g.OrderMoves(cur.b.possibleMoves, cur));
-
-		Move testing = g.StringToMove("B7xc8+", cur);
-		GD.Print("Awaw ", g.MoveToString(testing, cur.b.possibleMoves));
 	}
 
 	public override void _Process(double delta) {
@@ -125,8 +122,6 @@ public partial class main : Node2D
 			!AwChessThread[colorN].IsAlive() &&			// Bot not thinking
 			!interrupt)									// Game not ended yet
 			{
-				curBoardHistory.Add(cur.b.Copy());
-
 				Action botMove = () => {bot.SearchMove();};
 				AwChessThread[colorN].Start(Callable.From(botMove));
 			}
@@ -237,15 +232,18 @@ public partial class main : Node2D
 			else if (Input.IsActionJustPressed("click"))
 			{
 				g.perftSpeed = 50;
+
+				GD.Print("\nAWAW");
+				GD.Print(cur.ExportToPGN());
 			}
 		}
 
 		if (Input.IsActionJustReleased("undo"))
 		{
-			if (!(AwChessThread[0].IsAlive() || AwChessThread[1].IsAlive()) && curBoardHistory.Any())
+			if (!(AwChessThread[0].IsAlive() || AwChessThread[1].IsAlive()) && cur.boardHistory.Any())
 			{
-				Board lastBoard = curBoardHistory.Last(); // retrieves last board state
-				curBoardHistory.RemoveAt(curBoardHistory.Count - 1); // removes said state from history
+				Board lastBoard = cur.boardHistory.Last(); // retrieves last board state
+				cur.boardHistory.RemoveAt(cur.boardHistory.Count - 1); // removes said state from history
 
 				cur.UnmakeMove(cur.b.lastMove, ref lastBoard);
 				cur.b = lastBoard.Copy();
@@ -274,7 +272,6 @@ public partial class main : Node2D
 		playerMove.promotionPiece = promotionPiece;
 		GD.Print(g.MoveToString(playerMove, cur.b.possibleMoves), '\n');
 
-		curBoardHistory.Add(cur.b.Copy());
 		cur.MakeMove(playerMove);
 
 		g.UpdatePiecesDisplay(cur.b, playerMove, 1 - cur.b.sideToMove);

@@ -38,6 +38,7 @@ public partial class AwChess : Node
     public void UpdateCopy()
     {
         curCopy = curRef.Copy();
+		curCopy.isCur = false;
     }
 
     /* AWCHESS CHESS ENGINE */
@@ -149,12 +150,17 @@ public partial class AwChess : Node
 			{
 				curCopy.MakeMove(expectedOpponentMove); // simulate expected move
 			}
-			else if (unexpectedMove && 	// if opponent didn't play expected move
-					 !restartedSearch)
+			else
 			{
-				IDbest = new NodeVal(new Move(-1), g.negativeInfinity);
-				IDdepth = 1;
-				restartedSearch = true;
+				UpdateCopy(); // update copy if opponent already played move
+
+				if (unexpectedMove && 	// if opponent didn't play expected move
+					 !restartedSearch)
+				{
+					IDbest = new NodeVal(new Move(-1), g.negativeInfinity);
+					IDdepth = 1;
+					restartedSearch = true;
+				}
 			}
 			
 			IDbest = NegaMax(IDdepth, g.negativeInfinity, g.positiveInfinity);

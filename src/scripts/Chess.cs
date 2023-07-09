@@ -91,6 +91,8 @@ public struct Move
 public partial class Chess
 {
 	public Board b = new Board();
+	public List<Board> boardHistory = new List<Board> {};
+	public bool isCur = false;
 
 	public Chess() {
 		GD.Print("g awaw");
@@ -156,6 +158,72 @@ public partial class Chess
 		/* Zobrist Key Initialization */
 		b.zobristKey = GetZobristKey();
 		b.zobristHistory.Add(b.zobristKey);
+	}
+
+	public string ExportToFEN()
+	{
+		return "";
+	}
+
+	public string ExportToPGN()
+	{
+		string result = "*";
+		switch (b.gameOutcome)
+		{
+			case 0:
+				result = "1-0";
+				break;
+
+			case 1:
+				result = "0-1";
+				break;
+				
+			case 2:
+				result = "1/2-1/2";
+				break;
+		}
+
+
+
+		string tagPairs = String.Format(
+@"[Event ""?""]
+[Site ""?""]
+[Date ""{0}""]
+[Round ""?""]
+[White ""{1}""]
+[Black ""{2}""]
+[Result ""{3}""]
+
+",		DateTime.Now.ToString("yyyy.MM.dd"),
+		g.isPlayer[0] ? "Human" : "AwChess Bot",
+		g.isPlayer[1] ? "Human" : "AwChess Bot",
+		result);
+
+
+		string moveText = "";
+
+		for (int i = 0; i < boardHistory.Count; i++)
+		{
+			Board bPast = boardHistory[i];
+			string temp = g.MoveToString(bPast.lastMove, bPast.possibleMoves);
+
+			if (1 - bPast.sideToMove == 0) // if the side who moved b.lastMove is White
+			{
+				temp = String.Format("{0}. {1}", bPast.fullMoveCounter, temp);
+			}
+
+			Board bFuture = (i + 1 < boardHistory.Count) ? boardHistory[i + 1] : b;
+			if (bFuture.isInCheck)
+			{
+				temp += (bFuture.gameOutcome == 0 || bFuture.gameOutcome == 1) ? "#" : "+";
+			}
+
+			moveText += temp + " ";
+		}
+
+		moveText += result;
+
+		return tagPairs + moveText;
 	}
 
 	public void Update()
@@ -402,6 +470,12 @@ public partial class Chess
 		/* Adding Zobrist Key to History */
 		b.zobristHistory.Add(b.zobristKey);
 
+		/* Adding Current Board to Board History */
+		if (isCur)
+		{
+			boardHistory.Add(b.Copy());
+		}
+
 		/* Updating Variables */
 		Update();
 
@@ -458,6 +532,12 @@ public partial class Chess
 
 		/* Reversing Other Variables */
 		b = bPrev.Clone();
+
+		/* Removing Board from Board History */
+		if (isCur)
+		{
+			boardHistory.RemoveAt(boardHistory.Count - 1);
+		}
 	}
 
 	public void GeneratePossibleMoves(){
@@ -513,7 +593,7 @@ public partial class Chess
 
 						if (pieceN == 5 && endIndex == b.enPassantSquare) // if en passant capture
 						{
-							capturedPiece = 5;
+							move.capturedPiece = 5;
 							move.isEnPassant = true;
 						}
 

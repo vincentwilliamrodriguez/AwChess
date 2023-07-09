@@ -6,7 +6,7 @@ using System.Linq;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {true, true};
+	public static bool[] isPlayer = new bool[] {false, false};
 	public static int botSpeed = 200;
 	public static int botDepth = 4;
 	public static int botMaxID = 2000;
@@ -448,7 +448,8 @@ public static partial class g : Object
 
 			if (move.Contains('x'))	// capture
 			{
-				capturedPiece = source.FindPieceN(end);
+				bool isEnPassant = (pieceN == 5) && (end == source.b.enPassantSquare);
+				capturedPiece = isEnPassant ? 5 : source.FindPieceN(end); // en passant only captures pawn
 				move = move.Substring(0, move.Length - 1);
 			}
 
@@ -471,13 +472,11 @@ public static partial class g : Object
 				}
 			}
 
-			GD.Print("Awaw ", ambFile, ambRank);
-
 			foreach (Move moveCheck in b.possibleMoves)
 			{
 				bool sameFile = (moveCheck.start % 8) == ambFile;
 				bool sameRank = (moveCheck.start / 8) == ambRank;
-				
+
 				if (moveCheck.pieceN == pieceN &&
 					moveCheck.end == end &&
 					(ambFile == -1 || sameFile) &&
