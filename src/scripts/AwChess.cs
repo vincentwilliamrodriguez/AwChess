@@ -33,6 +33,7 @@ public partial class AwChess : Node
         mainJoinThread = joinThread;
 
         UpdateCopy();
+		Init();
     }
 
     public void UpdateCopy()
@@ -42,6 +43,22 @@ public partial class AwChess : Node
     }
 
     /* AWCHESS CHESS ENGINE */
+	public void Init()
+	{
+		transpositionTable = new Dictionary<ulong, NodeVal> {};
+/* 
+		foreach (var moveFreq in g.openingBook)
+		{
+			ulong posKey = moveFreq.Key;
+			var moveOptions = moveFreq.Value;
+
+			string selectedMoveString = GetRandomItem<string>(moveOptions.Keys, move => moveOptions[move].freq);
+			Move selectedMove = moveOptions[selectedMoveString].move;
+			NodeVal posNode = new NodeVal();
+			// TTableStore(posKey, posNode);
+		}
+		 */
+	}
 
 	public void RandomMove()
 	{
@@ -98,7 +115,7 @@ public partial class AwChess : Node
 			PerftCount childCount = Perft(depth - 1);
 			count.Add(childCount);
 
-			curCopy.UnmakeMove(move, ref curB);
+			curCopy.UnmakeMove(move, curB);
 			System.Threading.Thread.Sleep(g.perftSpeed);
 
 			if (depth == g.perftDepth)
@@ -122,7 +139,6 @@ public partial class AwChess : Node
 		time = new Stopwatch();
 		IDbest = new NodeVal(new Move(-1), g.negativeInfinity);
 		IDdepth = 1;
-		transpositionTable = new Dictionary<ulong, NodeVal> {};
 		restartedSearch = false;
 		count = 0;
 		count2 = 0;
@@ -171,6 +187,8 @@ public partial class AwChess : Node
 
 		IDdepth--;
 		time.Stop();
+
+		GD.Print("Awaw Table: ", transpositionTable.Count);
 
 		GD.Print(String.Format("(Bot {2})\nEval: {0}\nBest Move: {3}\nMax Depth: {5}\nTotal Positions: {1}\nTime: {4} seconds", 
 								IDbest.score, 
@@ -264,7 +282,7 @@ public partial class AwChess : Node
 				best.Adapt(movePack, move);
 			}
 
-			curCopy.UnmakeMove(move, ref curB);
+			curCopy.UnmakeMove(move, curB);
 			
 			alpha = Math.Max(alpha, moveScore);
 			
@@ -345,7 +363,7 @@ public partial class AwChess : Node
 				best.Adapt(movePack, move);
 			}
 
-			curCopy.UnmakeMove(move, ref curB);
+			curCopy.UnmakeMove(move, curB);
 
 			alpha = Math.Max(alpha, best.score);
 			if (alpha >= beta)
@@ -418,6 +436,23 @@ public partial class AwChess : Node
 	{
 		ulong address = key & ((1UL << 32) - 1);
 		transpositionTable[address] = node;
+	}
+
+	// credits to https://stackoverflow.com/a/9141878/8899995
+	public T GetRandomItem<T>(IEnumerable<T> itemsEnumerable, Func<T, int> weightKey)
+	{
+		var items = itemsEnumerable.ToList();
+
+		var totalWeight = items.Sum(x => weightKey(x));
+		var randomWeightedIndex = new Random().Next(totalWeight);
+		var itemWeightedIndex = 0;
+		foreach(var item in items)
+		{
+			itemWeightedIndex += weightKey(item);
+			if(randomWeightedIndex < itemWeightedIndex)
+				return item;
+		}
+		throw new ArgumentException("Collection count and weights must be greater than 0");
 	}
 }
 

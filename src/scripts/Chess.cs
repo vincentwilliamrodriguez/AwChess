@@ -91,16 +91,24 @@ public struct Move
 
 public partial class Chess
 {
-	public Board b = new Board();
-	public List<Board> boardHistory = new List<Board> {};
+	public Board b;
+	public List<Board> boardHistory;
 	public bool isCur = false;
 
 	public Chess() {
+		Init();
 		GD.Print("g awaw");
+	}
+
+	public void Init()
+	{
+		b = new Board();
+		boardHistory = new List<Board> {};
 	}
 
 	public void ImportFromFEN(string FEN) {
 		// rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+		Init();
 
 		string[] fields = FEN.Split(' ');
 
@@ -159,6 +167,9 @@ public partial class Chess
 		/* Zobrist Key Initialization */
 		b.zobristKey = GetZobristKey();
 		b.zobristHistory.Add(b.zobristKey);
+
+		/* Add Initial Position to Board History */
+		boardHistory.Add(b.Copy());
 	}
 
 	public string ExportToFEN()
@@ -166,23 +177,32 @@ public partial class Chess
 		return "";
 	}
 
-	public void ImportFromPGN(string source)
+	public void ImportFromPGN(string source, bool openingOnly, ref Dictionary<ulong, Dictionary<string, MoveFreq>> posMoves)
 	{
-		source = source.Replace(System.Environment.NewLine, " ");;
-		source = new string(source.Where(c => !char.IsControl(c)).ToArray());
+
+		source = source.Replace("\r", " ").Replace("\n", " ");
 		string[] fields = source.Split(']');
+
+		ImportFromFEN(g.startingPosition);
+
 		string moveText = fields[fields.Count() - 1];
 		moveText = Regex.Replace(moveText, @"\{.*?\}", string.Empty);
-		string[] moveCandidates = moveText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+		string[] moveCandidates = moveText.Split(" ", StringSplitOptions.RemoveEmptyEntries);
 		string[] filterMoves = new string[] {".", "1-0", "0-1", "1/2", "*"};
+		int moveLimit = Math.Min(moveCandidates.Count(), openingOnly ? 20 : g.positiveInfinity);
 
-		foreach (string moveCandidate in moveCandidates)
+		for (int i = 0; i < moveLimit; i++)
 		{
+			string moveCandidate = moveCandidates[i];
 			if(!filterMoves.Any(moveCandidate.Contains))
 			{
 				string moveString = moveCandidate.Replace("+", "").Replace("#", "");
 				Move move = g.StringToMove(moveString, this);
+				// GD.Print("Awaw ", moveString);
 				MakeMove(move);
+				// g.UpdatePiecesDisplay(b, move, 1 - b.sideToMove);
+				// g.mainNode.CallDeferred("MovingAnimation");
+				// System.Threading.Thread.Sleep(300);
 			}
 		}
 
@@ -204,6 +224,33 @@ public partial class Chess
 				b.gameOutcome = -1;
 				break;
 			
+		}
+
+
+		if (openingOnly)
+		{
+
+			while (b.lastMove.pieceN != -1)
+			{
+				Move moveMade = b.lastMove;
+				string moveMadeString = g.MoveToString(moveMade, b.possibleMoves);
+
+				UnmakeMove(moveMade, boardHistory[boardHistory.Count - 1]);
+ 
+				if (!posMoves.ContainsKey(b.zobristKey))
+				{
+					posMoves[b.zobristKey] = new Dictionary<string, MoveFreq> {};
+				}
+
+
+				if (!posMoves[b.zobristKey].ContainsKey(moveMadeString))
+				{
+					posMoves[b.zobristKey][moveMadeString] = new MoveFreq(moveMade, 0);
+				}
+
+				var moveOptions = posMoves[b.zobristKey][moveMadeString];
+				moveOptions.freq++;
+			}
 		}
 	}
 
@@ -244,7 +291,7 @@ public partial class Chess
 
 		string moveText = "";
 
-		for (int i = 0; i < boardHistory.Count; i++)
+		for (int i = 1; i < boardHistory.Count; i++)
 		{
 			Board bPast = boardHistory[i];
 			string temp = g.MoveToString(bPast.lastMove, bPast.possibleMoves);
@@ -526,7 +573,7 @@ public partial class Chess
 		// GD.Print(String.Format("Castling Rights: {4}\nSide to move: {0}\nEn passant: {1}\nHalfmove: {2}\nFullmove: {3}\n", b.sideToMove, b.enPassantSquare, b.halfMoveClock, b.fullMoveCounter, b.castlingRights[0, 0]));
 	}
 
-	public void UnmakeMove(Move move, ref Board bPrev)
+	public void UnmakeMove(Move move, Board bPrev)
 	{
 		int startPieceN = move.pieceN;
 		int startIndex = move.start;

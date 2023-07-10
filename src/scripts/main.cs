@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
+using System.Text.Json;
 
 public partial class main : Node2D
 {
@@ -78,14 +79,13 @@ public partial class main : Node2D
 		// g.PrintMoveList(cur.b.possibleMoves);
 		// g.PrintMoveList(g.OrderMoves(cur.b.possibleMoves, cur));
 
-		using var file = FileAccess.Open("user://test.pgn", FileAccess.ModeFlags.Read);
-		string pgn = file.GetAsText();
-		cur.ImportFromPGN(pgn);
-		
-		g.UpdatePiecesDisplay(cur.b);
+		var thread = new GodotThread();
+		Action import = () => {ParseOpenings();};
+		thread.Start(Callable.From(import));
 	}
 
 	public override void _Process(double delta) {
+		g.UpdatePiecesDisplay(cur.b);
 		int turn = cur.b.sideToMove;
 
 		if (cur.b.gameOutcome != -1)
@@ -251,7 +251,7 @@ public partial class main : Node2D
 				Board lastBoard = cur.boardHistory.Last(); // retrieves last board state
 				cur.boardHistory.RemoveAt(cur.boardHistory.Count - 1); // removes said state from history
 
-				cur.UnmakeMove(cur.b.lastMove, ref lastBoard);
+				cur.UnmakeMove(cur.b.lastMove, lastBoard);
 				cur.b = lastBoard.Copy();
 
 				g.isMovingPiece = false;
@@ -442,6 +442,33 @@ public partial class main : Node2D
 	{
 		AwChessThread[color].WaitToFinish();
 	}
+
+	public void ParseOpenings()
+	{
+		using var file = FileAccess.Open("user://twic1495.pgn", FileAccess.ModeFlags.Read);
+		using var file2 = FileAccess.Open("user://opening_book.json", FileAccess.ModeFlags.Write);
+
+		string[] games = file.GetAsText().Split("\n\n[", StringSplitOptions.TrimEntries);
+		var posMoves = new Dictionary<ulong, Dictionary<string, MoveFreq>> {};
+		int n = 0;
+		foreach (string item in games)
+		{
+			n++;
+			string game = item;
+
+			if (item[0] != '[')
+			{
+				game = "[" + game;
+			}
+
+			cur.ImportFromPGN(game, true, ref posMoves);
+		}
+
+		GD.Print("AWAW ", posMoves.Count);
+
+		string posMovesSerialized = JsonSerializer.Serialize(posMoves);
+		file2.StoreString(posMovesSerialized);
+	}
 }
 
 /* 
@@ -450,3 +477,9 @@ var watch = System.Diagnostics.Stopwatch.StartNew();
 watch.Stop();
 GD.Print(watch.ElapsedMilliseconds);
  */
+
+ /* 
+var thread = new GodotThread();
+Action import = () => {cur.ImportFromPGN(game);};
+thread.Start(Callable.From(import));
+  */
