@@ -46,18 +46,24 @@ public partial class AwChess : Node
 	public void Init()
 	{
 		transpositionTable = new Dictionary<ulong, NodeVal> {};
-/* 
+
 		foreach (var moveFreq in g.openingBook)
 		{
 			ulong posKey = moveFreq.Key;
 			var moveOptions = moveFreq.Value;
 
-			string selectedMoveString = GetRandomItem<string>(moveOptions.Keys, move => moveOptions[move].freq);
-			Move selectedMove = moveOptions[selectedMoveString].move;
-			NodeVal posNode = new NodeVal();
-			// TTableStore(posKey, posNode);
+			string selectedMoveString = GetRandomItem<string>(moveOptions.Keys, move => moveOptions[move]);
+			Move selectedMove = new Move(selectedMoveString);
+
+			NodeVal posNode = new NodeVal(selectedMove, 0);
+			posNode.zobristKey = posKey;
+			posNode.flag = 1;
+			posNode.depth = g.positiveInfinity;
+			posNode.isValid = true;
+			posNode.AddMoveToPrincipal();
+			TTableStore(posKey, posNode);
 		}
-		 */
+		
 	}
 
 	public void RandomMove()
@@ -145,8 +151,8 @@ public partial class AwChess : Node
 
 		Board curRefOrig = curRef.b.Copy();
 		
-		while (time.ElapsedMilliseconds <= g.botMaxID || 
-			  (unexpectedMove && !restartedSearch))
+		while ((time.ElapsedMilliseconds <= g.botMaxID || 
+			  (unexpectedMove && !restartedSearch)))
 		{
 			if (interrupt)
 			{
@@ -173,14 +179,21 @@ public partial class AwChess : Node
 				if (unexpectedMove && 	// if opponent didn't play expected move
 					 !restartedSearch)
 				{
-					IDbest = new NodeVal(new Move(-1), g.negativeInfinity);
 					IDdepth = 1;
 					restartedSearch = true;
+					continue;
 				}
 			}
 			
-			IDbest = NegaMax(IDdepth, g.negativeInfinity, g.positiveInfinity);
-			IDdepth++;
+			if (curCopy.b.sideToMove == botColor)	// if the current side to move is the bot, to prevent bugs
+			{
+				IDbest = NegaMax(IDdepth, g.negativeInfinity, g.positiveInfinity);
+			}
+
+			if (IDbest.depth != g.positiveInfinity)		// best move is not an opening move
+			{
+				IDdepth++;
+			}
 
 			// GD.Print("Awaw ", IDdepth, " ", g.MoveToString(IDbest.move));
 		}
@@ -246,13 +259,7 @@ public partial class AwChess : Node
 		if (depth == 0 || curCopy.b.gameOutcome != -1)
 		{
 			count--;
-			// curRef.b = curCopy.b.Copy();
-			// System.Threading.Thread.Sleep(100);
-
 			NodeVal qBest = QuiescenceSearch(alpha, beta);
-
-			// curRef.b = curCopy.b.Copy();
-			// System.Threading.Thread.Sleep(100);
 			return qBest;
 		}
 
@@ -262,17 +269,7 @@ public partial class AwChess : Node
 
 		foreach (Move move in possibleMoves)
 		{
-			// if (move.capturedPiece != -1 && move.start == 47)
-			// {
-			// 	System.Threading.Thread.Sleep(1000);
-			// }
-
 			curCopy.MakeMove(move);
-			// curRef.b = curCopy.b.Copy();
-			// if (move.capturedPiece != -1 && move.start == 47)
-			// {
-			// 	System.Threading.Thread.Sleep(1000);
-			// }
 			
 			NodeVal movePack = NegaMax(depth - 1, -beta, -alpha);
 			int moveScore = -movePack.score;

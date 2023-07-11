@@ -79,13 +79,14 @@ public partial class main : Node2D
 		// g.PrintMoveList(cur.b.possibleMoves);
 		// g.PrintMoveList(g.OrderMoves(cur.b.possibleMoves, cur));
 
+		/* 
 		var thread = new GodotThread();
 		Action import = () => {ParseOpenings();};
 		thread.Start(Callable.From(import));
+ 		 */
 	}
 
 	public override void _Process(double delta) {
-		g.UpdatePiecesDisplay(cur.b);
 		int turn = cur.b.sideToMove;
 
 		if (cur.b.gameOutcome != -1)
@@ -449,7 +450,7 @@ public partial class main : Node2D
 		using var file2 = FileAccess.Open("user://opening_book.json", FileAccess.ModeFlags.Write);
 
 		string[] games = file.GetAsText().Split("\n\n[", StringSplitOptions.TrimEntries);
-		var posMoves = new Dictionary<ulong, Dictionary<string, MoveFreq>> {};
+		var posMoves = new Dictionary<ulong, Dictionary<string, int>> {};
 		int n = 0;
 		foreach (string item in games)
 		{

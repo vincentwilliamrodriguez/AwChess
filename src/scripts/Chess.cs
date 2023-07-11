@@ -87,6 +87,29 @@ public struct Move
 		this.promotionPiece = promotionPiece;
 		this.capturedPiece = capturedPiece;
 	}
+
+	public Move(string parsedString)
+	{
+		int[] data = parsedString.Split(',').Select(int.Parse).ToArray();
+		pieceN = data[0];
+		start = data[1];
+		end = data[2];
+		promotionPiece = data[3];
+		capturedPiece = data[4];
+		isEnPassant = data[5] == 1;
+	}
+
+	public string ParseToString()
+	{
+		return String.Format("{0},{1},{2},{3},{4},{5}",
+							 pieceN,
+							 start,
+							 end,
+							 promotionPiece,
+							 capturedPiece,
+							 isEnPassant ? 1 : 0
+							);
+	}
 }
 
 public partial class Chess
@@ -177,7 +200,7 @@ public partial class Chess
 		return "";
 	}
 
-	public void ImportFromPGN(string source, bool openingOnly, ref Dictionary<ulong, Dictionary<string, MoveFreq>> posMoves)
+	public void ImportFromPGN(string source, bool openingOnly, ref Dictionary<ulong, Dictionary<string, int>> posMoves)
 	{
 
 		source = source.Replace("\r", " ").Replace("\n", " ");
@@ -233,23 +256,22 @@ public partial class Chess
 			while (b.lastMove.pieceN != -1)
 			{
 				Move moveMade = b.lastMove;
-				string moveMadeString = g.MoveToString(moveMade, b.possibleMoves);
+				string moveMadeString = moveMade.ParseToString();
 
-				UnmakeMove(moveMade, boardHistory[boardHistory.Count - 1]);
+				UnmakeMove(moveMade, boardHistory[boardHistory.Count - 2]);	// -2 because of the extra initial position board, fixes bug
  
 				if (!posMoves.ContainsKey(b.zobristKey))
 				{
-					posMoves[b.zobristKey] = new Dictionary<string, MoveFreq> {};
+					posMoves[b.zobristKey] = new Dictionary<string, int> {};
 				}
 
 
 				if (!posMoves[b.zobristKey].ContainsKey(moveMadeString))
 				{
-					posMoves[b.zobristKey][moveMadeString] = new MoveFreq(moveMade, 0);
+					posMoves[b.zobristKey][moveMadeString] = 0;
 				}
 
-				var moveOptions = posMoves[b.zobristKey][moveMadeString];
-				moveOptions.freq++;
+				posMoves[b.zobristKey][moveMadeString]++;
 			}
 		}
 	}
@@ -621,14 +643,15 @@ public partial class Chess
 			}
 		}
 
-		/* Reversing Other Variables */
-		b = bPrev.Clone();
 
 		/* Removing Board from Board History */
 		if (isCur)
 		{
 			boardHistory.RemoveAt(boardHistory.Count - 1);
 		}
+
+		/* Reversing Other Variables */
+		b = bPrev.Clone();
 	}
 
 	public void GeneratePossibleMoves(){

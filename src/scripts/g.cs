@@ -7,7 +7,7 @@ using System.Text.Json;
 
 public static partial class g : Object
 {
-	public static bool[] isPlayer = new bool[] {true, true};
+	public static bool[] isPlayer = new bool[] {false, false};
 	public static int botSpeed = 200;
 	public static int botDepth = 4;
 	public static int botMaxID = 2000;
@@ -64,7 +64,7 @@ public static partial class g : Object
 	public static ulong zobristNumSideToMove; // only applied when sideToMove is 1 (black)
 	public static ulong[,] zobristNumsCastling = new ulong[2, 2];
 	public static ulong[] zobristNumsEnPassant = new ulong[8];
-	public static Dictionary<ulong, Dictionary<string, MoveFreq>> openingBook;
+	public static Dictionary<ulong, Dictionary<string, int>> openingBook = new Dictionary<ulong, Dictionary<string, int>> {};
 
 	public static double moveSpeed = 0.1;
 	public static ulong[,] piecesDisplay = new ulong[2, 6];
@@ -276,7 +276,6 @@ public static partial class g : Object
 		}
 
 		/* Zobrist Numbers Initialization */
-
 		for (int fileN = 0; fileN < 8; fileN++)
 		{
 			zobristNumsEnPassant[fileN] = RandomULong();
@@ -301,10 +300,9 @@ public static partial class g : Object
 		}
 
 		/* Opening Book Initialization */
-		// using var openingBookFile = FileAccess.Open("user://opening_book.json", FileAccess.ModeFlags.Read);
-		// g.openingBook = JsonSerializer.Deserialize<Dictionary<ulong, Dictionary<string, int>>>(openingBookFile.GetAsText());
-
-		// GD.Print("AwAw ", g.openingBook.Count);
+		using var openingBookFile = FileAccess.Open("user://opening_book.json", FileAccess.ModeFlags.Read);
+		g.openingBook = JsonSerializer.Deserialize<Dictionary<ulong, Dictionary<string, int>>>(openingBookFile.GetAsText());
+		GD.Print("AwAw ", g.openingBook.Count, "\n");
 	}
 
 	public static void PrintBitboard(ulong[,] inp) {
@@ -579,17 +577,5 @@ public static partial class g : Object
 				}
 			}
 		}
-	}
-}
-
-public struct MoveFreq
-{
-	public Move move;
-	public int freq;
-
-	public MoveFreq(Move Move, int Freq)
-	{
-		move = Move;
-		freq = Freq;
 	}
 }
