@@ -223,6 +223,7 @@ public partial class AwChess : Node
 		expectedOpponentMoveDisplay = g.MoveToString(expectedOpponentMove, curRef.b.possibleMoves);
 		g.UpdatePiecesDisplay(curRef.b, IDbest.move, botColor);
 		g.mainNode.CallDeferred("MovingAnimation");
+		g.mainNode.CallDeferred("PlayAudio");
         mainJoinThread.CallDeferred();
 	}
 
@@ -506,7 +507,7 @@ public struct NodeVal
 		move = prevMove;
 		score = -source.score;
 
-		principal = source.principal.Copy();
+		principal = source.principal.ToList();
 
 		zobristKey = source.zobristKey;
 	}

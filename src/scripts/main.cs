@@ -147,16 +147,6 @@ public partial class main : Node2D
 		UpdatePieces();
 		HighlightPossibleMoves();
 		HighlightBitboard(g.testHighlight);
-
-		/* 
-		g.debugLabel = String.Format("Outcome: {0}\nEvaluation: {1}\nBot Depth: {2}\nTime: {3} s\nCount: {4}", 
-									 Convert.ToString(cur.b.gameOutcome),
-									 AwChessBot[botIndex].botEval * g.sign[botIndex],
-									 !g.isPlayer[turn] ? AwChessBot[turn].IDdepth : "N/A",
-									 AwChessBot[turn].time.ElapsedMilliseconds / 1000.0,
-									 AwChessBot[turn].count);
-		debugLabelNode.Text = g.debugLabel;
- 		*/
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -242,24 +232,6 @@ public partial class main : Node2D
 			}
 		}
 
-		if (Input.IsActionJustReleased("undo"))
-		{
-			if (!(AwChessThread[0].IsAlive() || AwChessThread[1].IsAlive()) && cur.boardHistory.Any())
-			{
-				Board lastBoard = cur.boardHistory.Last(); // retrieves last board state
-				cur.boardHistory.RemoveAt(cur.boardHistory.Count - 1); // removes said state from history
-
-				cur.UnmakeMove(cur.b.lastMove, lastBoard);
-				cur.b = lastBoard.Copy();
-
-				g.isMovingPiece = false;
-				g.selectedPiece = -1; // [piece, index]
-				g.selectedPieceN = -1;
-				g.curHighlightedMoves = 0UL;
-				g.staticEvaluation = cur.Evaluate(true);
-			}
-		}
-
 		if (Input.IsActionJustReleased("export_pgn"))
 		{
 			GD.Print("===============================================================\n\n", 
@@ -294,9 +266,38 @@ public partial class main : Node2D
 
 		g.UpdatePiecesDisplay(cur.b, playerMove, 1 - cur.b.sideToMove);
 		MovingAnimation();
-
+		PlayAudio();
 
 		g.staticEvaluation = cur.Evaluate(true);
+	}
+
+	public void Undo()
+	{
+		GD.Print("Awaw ", cur.boardHistory.Count);
+		if (cur.boardHistory.Any())
+		{
+			foreach (AwChess bot in AwChessBot)
+			{
+				bot.interrupt = true;
+			}
+
+			Board lastBoard = cur.boardHistory.Last().Copy(); // retrieves last board state
+
+			cur.UnmakeMove(cur.b.lastMove, lastBoard);
+			cur.b = lastBoard.Copy();
+
+			g.isMovingPiece = false;
+			g.selectedPiece = -1; // [piece, index]
+			g.selectedPieceN = -1;
+			g.curHighlightedMoves = 0UL;
+			g.staticEvaluation = cur.Evaluate(true);
+			g.UpdatePiecesDisplay(cur.b);
+
+			foreach (AwChess bot in AwChessBot)
+			{
+				bot.interrupt = false;
+			}
+		}
 	}
 
 	public void InitBoard() {
@@ -480,6 +481,58 @@ public partial class main : Node2D
 
 		string posMovesSerialized = JsonSerializer.Serialize(posMoves);
 		file2.StoreString(posMovesSerialized);
+	}
+
+	public void PlayAudio()
+	{
+		Move move = cur.b.lastMove;
+		string soundName = "move-self";
+
+		if (cur.b.isInCheck)
+		{
+			soundName = "move-check";
+		}
+		else if (move.capturedPiece != -1)
+		{
+			soundName = "capture";
+		}
+		else if (move.promotionPiece != -1)
+		{
+			soundName = "promote";
+		}
+		else if (move.pieceN == 0 && (move.start % 8) == 4)
+		{
+			for (int sideN = 0; sideN < 2; sideN++)
+			{
+				if (move.end == g.castlingKingPos[cur.b.sideToMove, sideN])
+				{
+					soundName = "castle";
+				}
+			}
+		}
+
+		var p = new AudioStreamPlayer();
+		AddChild(p);
+		p.Stream = LoadMP3("res://src/sounds/" + soundName + ".mp3");
+		p.Play();
+		p.Finished += () => p.QueueFree();
+
+		if (cur.b.gameOutcome != -1)
+		{
+			 p = new AudioStreamPlayer();
+			AddChild(p);
+			p.Stream = LoadMP3("res://src/sounds/game-end.mp3");
+			p.Play();
+			p.Finished += () => p.QueueFree();
+		}
+	}
+
+	public AudioStreamMP3 LoadMP3(string path)
+	{
+		using var file = FileAccess.Open(path, FileAccess.ModeFlags.Read);
+		var sound = new AudioStreamMP3();
+		sound.Data = file.GetBuffer((long) file.GetLength());
+		return sound;
 	}
 }
 
