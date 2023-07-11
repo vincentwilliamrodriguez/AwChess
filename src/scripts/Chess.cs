@@ -1213,12 +1213,14 @@ public partial class Chess
 			int sign = g.sign[colorN];
 			int enemyKingPos = g.BitScan(b.pieces[1 - colorN, 0]);
 
+			/* 
 			bool isOpponent = (colorN != b.sideToMove);
 			if (isOpponent)
 			{
 				b.sideToMove = 1 - b.sideToMove;
 				Update();
-			}
+			} 
+			*/
 
 
 			for (int pieceN = 0; pieceN < 6; pieceN++)
@@ -1356,12 +1358,13 @@ public partial class Chess
 			/* Mobility */
 			mobilityScore += sign * CalculateMobility(colorN);
 
-
+			/* 
 			if (isOpponent)
 			{
 				b.sideToMove = 1 - b.sideToMove;
 				Update();
 			}
+			 */
 		}
 
 		return materialValue + 

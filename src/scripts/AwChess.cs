@@ -151,8 +151,9 @@ public partial class AwChess : Node
 
 		Board curRefOrig = curRef.b.Copy();
 		
-		while ((time.ElapsedMilliseconds <= g.botMaxID || 
-			  (unexpectedMove && !restartedSearch)))
+		while ((IDdepth <= g.botMaxDepth) &&
+			   (time.ElapsedMilliseconds <= g.botMaxID || 
+			   (unexpectedMove && !restartedSearch)))
 		{
 			if (interrupt)
 			{
