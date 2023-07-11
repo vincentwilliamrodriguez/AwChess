@@ -197,7 +197,108 @@ public partial class Chess
 
 	public string ExportToFEN()
 	{
-		return "";
+		// rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+
+		/* Pieces Text */
+		string piecesText = "";
+
+		for (int rank = 7; rank >= 0; rank--)
+		{
+			int empty = 0;
+
+			for (int file = 0; file < 8; file++)
+			{
+				int pos = g.ToIndex(file, rank);
+
+				int colorN = FindColorN(pos);
+				int pieceN = FindPieceN(pos);
+
+				if (pieceN == -1)
+				{
+					empty++;
+					continue;
+				}
+
+				char pieceChar = g.piecesArray[pieceN];
+
+				if (colorN == 0)
+				{
+					pieceChar = Char.ToUpper(pieceChar);
+				}
+
+				if (empty != 0)
+				{
+					piecesText += Convert.ToString(empty);
+				}
+				
+
+				piecesText += pieceChar;
+				empty = 0;
+
+			}
+
+			if (empty != 0)
+			{
+				piecesText += Convert.ToString(empty);
+			}
+			
+			if (rank != 0)
+			{
+				piecesText += '/';
+			}
+		}
+		
+		/* Side To Move Char */
+		char sideChar = (b.sideToMove == 0) ? 'w' : 'b';
+
+		/* Castling Text */
+		string castlingText = "";
+
+		for (int colorN = 0; colorN < 2; colorN++)
+		{
+			for (int sideN = 1; sideN >= 0; sideN--)
+			{
+				if (b.castlingRights[colorN, sideN])
+				{
+					char castlingChar = (sideN == 1) ? 'k' : 'q';
+
+					if (colorN == 0)
+					{
+						castlingChar = Char.ToUpper(castlingChar);
+					}
+
+					castlingText += castlingChar;
+				}
+			}
+		}
+
+		if (castlingText == "")
+		{
+			castlingText = "-";
+		}
+
+		/* En Passant Square Text */
+		string EPSquareText;
+
+		if (b.enPassantSquare != -1)
+		{
+			int EPfile = b.enPassantSquare % 8;
+			int EPrank = b.enPassantSquare / 8;
+
+			EPSquareText = g.fileArray[EPfile] + Convert.ToString(EPrank + 1);
+		}
+		else
+		{
+			EPSquareText = "-";
+		}
+
+		return String.Format("{0} {1} {2} {3} {4} {5}", 
+							 piecesText,
+							 sideChar,
+							 castlingText,
+							 EPSquareText,
+							 b.halfMoveClock,
+							 b.fullMoveCounter);
 	}
 
 	public void ImportFromPGN(string source, bool openingOnly, ref Dictionary<ulong, Dictionary<string, int>> posMoves)

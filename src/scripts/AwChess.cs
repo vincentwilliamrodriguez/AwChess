@@ -233,7 +233,8 @@ public partial class AwChess : Node
 		ulong curKey = curCopy.b.zobristKey;
 		NodeVal tTableEntry = TTableLookUp(curKey);
 
-		if (tTableEntry.isValid && tTableEntry.depth >= depth)
+		if (tTableEntry.isValid && tTableEntry.depth >= depth &&	// read only when entry depth is greater than or equal to current depth
+			!(depth == IDdepth && (curRef.b.zobristHistory.Where(key => key == curKey).Count()) >= 2))	// prevents bot from reading when it may lead to three fold repetition
 		{
 			count2++;
 			switch (tTableEntry.flag)

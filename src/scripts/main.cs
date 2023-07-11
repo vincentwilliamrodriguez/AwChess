@@ -35,7 +35,7 @@ public partial class main : Node2D
 		cur = new Chess();
 		cur.isCur = true;
 		cur.ImportFromFEN(g.startingPosition);
-		// cur.ImportFromFEN("4r2r/2k3p1/Ppp2p1p/7P/2pP2P1/2B2P2/5K2/R3R3 w - - 0 35");
+		// cur.ImportFromFEN("r1b1kb1r/pppp1ppp/2n5/7q/3NN3/5PP1/PPP4P/R1BQKB1R w KQkq - 1 9");
 	
 		InitBoard();
 		g.UpdatePiecesDisplay(cur.b);
@@ -239,9 +239,6 @@ public partial class main : Node2D
 			else if (Input.IsActionJustPressed("click"))
 			{
 				g.perftSpeed = 50;
-
-				GD.Print("\nAWAW");
-				GD.Print(cur.ExportToPGN());
 			}
 		}
 
@@ -261,6 +258,20 @@ public partial class main : Node2D
 				g.curHighlightedMoves = 0UL;
 				g.staticEvaluation = cur.Evaluate(true);
 			}
+		}
+
+		if (Input.IsActionJustReleased("export_pgn"))
+		{
+			GD.Print("===============================================================\n\n", 
+					 cur.ExportToPGN(),
+					 "\n\n===============================================================\n");
+		}
+
+		if (Input.IsActionJustReleased("export_fen"))
+		{
+			GD.Print("===============================================================\n\n", 
+					 cur.ExportToFEN(),
+					 "\n\n===============================================================\n");
 		}
 	}
 
